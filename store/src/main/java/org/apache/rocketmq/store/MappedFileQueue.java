@@ -191,19 +191,28 @@ public class MappedFileQueue {
         return 0;
     }
 
+    /**
+     * 获取最后一个 MappedFile，若不存在或文件已满，则进行创建。
+     *
+     * @param startOffset  从0开始
+     * @param needCreate
+     * @return
+     */
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
-        long createOffset = -1;
+        long createOffset = -1;     // 创建文件开始offset。-1时，不创建
         MappedFile mappedFileLast = getLastMappedFile();
 
-        if (mappedFileLast == null) {
+        if (mappedFileLast == null) {   // 一个映射文件都不存在
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
 
-        if (mappedFileLast != null && mappedFileLast.isFull()) {
+        if (mappedFileLast != null && mappedFileLast.isFull()) {    // 最后一个文件已满
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 
-        if (createOffset != -1 && needCreate) {
+        if (createOffset != -1 && needCreate) {  // 创建文件
+
+            //文件路径命名规则：在上一个文件的大小的基础上 + 1 = 下一个文件的名称
             String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
             String nextNextFilePath = this.storePath + File.separator
                 + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
@@ -237,6 +246,10 @@ public class MappedFileQueue {
         return getLastMappedFile(startOffset, true);
     }
 
+    /**
+     * 获取最后一个 MappedFile
+     * @return  MappedFile
+     */
     public MappedFile getLastMappedFile() {
         MappedFile mappedFileLast = null;
 
