@@ -62,6 +62,9 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * Remoting 服务端实现
+ */
 public class NettyRemotingServer extends NettyRemotingAbstract implements RemotingServer {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
     private final ServerBootstrap serverBootstrap;
@@ -183,7 +186,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     public void start() {
         //默认的处理线程池组,使用默认的处理线程池组用于处理后面的多个Netty Handler的逻辑操作
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
-            nettyServerConfig.getServerWorkerThreads(),
+            nettyServerConfig.getServerWorkerThreads(),  // 默认8个线程
             new ThreadFactory() {
 
                 private AtomicInteger threadIndex = new AtomicInteger(0);
@@ -204,16 +207,17 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         //RocketMQ-> Java NIO的1+N+M模型：1个acceptor线程，N个IO线程，M1个worker 线程。
         ServerBootstrap childHandler =
             this.serverBootstrap.group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
+                //指定EpollServerSocketChannel或者NioServerSocketChannel类初始化channel用来接受客户端请求。
                 .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
-                //服务端处理客户端连接请求是顺序处理的，所以同一时间只能处理一个客户端连接，多个客户端来的时候，
+                // 服务端处理客户端连接请求是顺序处理的，所以同一时间只能处理一个客户端连接，多个客户端来的时候，
                 // 服务端将不能处理的客户端连接请求放在队列中等待处理，backlog参数指定了队列的大小
                 .option(ChannelOption.SO_BACKLOG, 1024)
-                .option(ChannelOption.SO_REUSEADDR, true) //这个参数表示允许重复使用本地地址和端口
-                .option(ChannelOption.SO_KEEPALIVE, false) //当设置该选项以后，如果在两小时内没有数据的通信时,TCP会自动发送一个活动探测数据报文。
-                .childOption(ChannelOption.TCP_NODELAY, true)   //该参数的作用就是禁止使用Nagle算法，使用于小数据即时传输
+                .option(ChannelOption.SO_REUSEADDR, true) // 这个参数表示允许重复使用本地地址和端口
+                .option(ChannelOption.SO_KEEPALIVE, false) // 当设置该选项以后，如果在两小时内没有数据的通信时,TCP会自动发送一个活动探测数据报文。
+                .childOption(ChannelOption.TCP_NODELAY, true)   // 该参数的作用就是禁止使用Nagle算法，使用于小数据即时传输
                 .childOption(ChannelOption.SO_SNDBUF, nettyServerConfig.getServerSocketSndBufSize()) //这两个参数用于操作接收缓冲区和发送缓冲区
                 .childOption(ChannelOption.SO_RCVBUF, nettyServerConfig.getServerSocketRcvBufSize())
-                .localAddress(new InetSocketAddress(this.nettyServerConfig.getListenPort()))
+                .localAddress(new InetSocketAddress(this.nettyServerConfig.getListenPort())) // 绑定地址端口
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     public void initChannel(SocketChannel ch) throws Exception {
@@ -424,6 +428,10 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 连接时间管理，把事件重新包装 NettyEvent，
+     * 扔到 org.apache.rocketmq.remoting.netty.NettyRemotingAbstract.NettyEventExecutor#eventQueue 事件队列中
+     */
     class NettyConnectManageHandler extends ChannelDuplexHandler {
         @Override
         public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
@@ -445,6 +453,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             log.info("NETTY SERVER PIPELINE: channelActive, the channel[{}]", remoteAddress);
             super.channelActive(ctx);
 
+            //连接事件
             if (NettyRemotingServer.this.channelEventListener != null) {
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CONNECT, remoteAddress, ctx.channel()));
             }
@@ -456,6 +465,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             log.info("NETTY SERVER PIPELINE: channelInactive, the channel[{}]", remoteAddress);
             super.channelInactive(ctx);
 
+            //关闭
             if (NettyRemotingServer.this.channelEventListener != null) {
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CLOSE, remoteAddress, ctx.channel()));
             }
@@ -469,6 +479,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                     final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
                     log.warn("NETTY SERVER PIPELINE: IDLE exception [{}]", remoteAddress);
                     RemotingUtil.closeChannel(ctx.channel());
+                    //心跳监测
                     if (NettyRemotingServer.this.channelEventListener != null) {
                         NettyRemotingServer.this
                             .putNettyEvent(new NettyEvent(NettyEventType.IDLE, remoteAddress, ctx.channel()));
@@ -485,6 +496,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             log.warn("NETTY SERVER PIPELINE: exceptionCaught {}", remoteAddress);
             log.warn("NETTY SERVER PIPELINE: exceptionCaught exception.", cause);
 
+            //异常
             if (NettyRemotingServer.this.channelEventListener != null) {
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.EXCEPTION, remoteAddress, ctx.channel()));
             }

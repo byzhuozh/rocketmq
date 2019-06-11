@@ -22,6 +22,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * mq协议格式 序列化
+ */
 public class RocketMQSerializable {
     private static final Charset CHARSET_UTF8 = Charset.forName("UTF-8");
 

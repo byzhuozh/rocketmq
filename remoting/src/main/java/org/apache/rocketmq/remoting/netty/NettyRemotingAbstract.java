@@ -148,15 +148,17 @@ public abstract class NettyRemotingAbstract {
      * @param ctx Channel handler context.
      * @param msg incoming remoting command.
      * @throws Exception if there were any error while processing the incoming command.
+     *
+     * 消息接收处理
      */
     public void processMessageReceived(ChannelHandlerContext ctx, RemotingCommand msg) throws Exception {
         final RemotingCommand cmd = msg;
         if (cmd != null) {
             switch (cmd.getType()) {
-                case REQUEST_COMMAND:
+                case REQUEST_COMMAND:  // 请求
                     processRequestCommand(ctx, cmd);
                     break;
-                case RESPONSE_COMMAND:
+                case RESPONSE_COMMAND:  // 响应
                     processResponseCommand(ctx, cmd);
                     break;
                 default:

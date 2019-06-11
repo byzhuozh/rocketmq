@@ -75,7 +75,7 @@ public class RemotingCommand {
     /**
      * Header 部分
      */
-    private int code;
+    private int code;   // {@link org.apache.rocketmq.common.protocol.RequestCode}
     private LanguageCode language = LanguageCode.JAVA;
     private int version = 0;
     private int opaque = requestId.getAndIncrement();

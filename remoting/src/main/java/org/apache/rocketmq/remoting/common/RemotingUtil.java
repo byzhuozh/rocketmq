@@ -35,6 +35,9 @@ import java.util.Enumeration;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * 网络相关方法
+ */
 public class RemotingUtil {
     public static final String OS_NAME = System.getProperty("os.name");
 
@@ -59,6 +62,7 @@ public class RemotingUtil {
     public static Selector openSelector() throws IOException {
         Selector result = null;
 
+        //linux 系统走 epoll 实现
         if (isLinuxPlatform()) {
             try {
                 final Class<?> providerClazz = Class.forName("sun.nio.ch.EPollSelectorProvider");
@@ -80,6 +84,7 @@ public class RemotingUtil {
             }
         }
 
+        // 走 window 实现
         if (result == null) {
             result = Selector.open();
         }

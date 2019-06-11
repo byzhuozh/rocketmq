@@ -30,8 +30,16 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
  */
 public interface RemotingClient extends RemotingService {
 
+    /**
+     * 更新服务地址列表
+     * @param addrs
+     */
     void updateNameServerAddressList(final List<String> addrs);
 
+    /**
+     * 获取服务地址列表
+     * @return
+     */
     List<String> getNameServerAddressList();
 
     /**
@@ -48,16 +56,32 @@ public interface RemotingClient extends RemotingService {
         final InvokeCallback invokeCallback) throws InterruptedException, RemotingConnectException,
         RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException;
 
+    /**
+     * 单向调用
+     */
     void invokeOneway(final String addr, final RemotingCommand request, final long timeoutMillis)
         throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException,
         RemotingTimeoutException, RemotingSendRequestException;
 
+    /**
+     * 注册请求处理器
+     */
     void registerProcessor(final int requestCode, final NettyRequestProcessor processor,
         final ExecutorService executor);
 
+    /**
+     * 设置回调的线程池
+     * @param callbackExecutor
+     */
     void setCallbackExecutor(final ExecutorService callbackExecutor);
 
+    /**
+     * 获取回调的线程池
+     */
     ExecutorService getCallbackExecutor();
 
+    /**
+     * channel 是否可写
+     */
     boolean isChannelWritable(final String addr);
 }

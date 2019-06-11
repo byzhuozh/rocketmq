@@ -516,11 +516,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * 发送消息
      */
     private SendResult sendDefaultImpl(
-        Message msg,
-        final CommunicationMode communicationMode,
-        final SendCallback sendCallback,
+        Message msg,    // 消息
+        final CommunicationMode communicationMode, //通信方式：同步、异步、单向
+        final SendCallback sendCallback,    // 发送后的回调处理
         final long timeout
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+
         // 校验 Producer 处于运行状态
         this.makeSureStateOK();
         // 校验消息格式
