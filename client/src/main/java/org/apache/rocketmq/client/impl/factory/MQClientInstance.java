@@ -951,11 +951,16 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    /**
+     * 执行消息队列分配
+     */
     public void doRebalance() {
+        //遍历当前 Client 包含的 consumerTable( Consumer集合 )，执行消息队列分配
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
                 try {
+                    // DefaultMQPushConsumerImpl、DefaultMQPullConsumerImpl 分别对该接口方法进行了实现
                     impl.doRebalance();
                 } catch (Throwable e) {
                     log.error("doRebalance exception", e);

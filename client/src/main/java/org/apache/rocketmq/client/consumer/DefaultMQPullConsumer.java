@@ -35,6 +35,8 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
  * Default pulling consumer
+ *
+ * 拉取模式
  */
 public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsumer {
     protected final transient DefaultMQPullConsumerImpl defaultMQPullConsumerImpl;
@@ -42,47 +44,77 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
     /**
      * Do the same thing for the same Group, the application must be set,and
      * guarantee Globally unique
+     *
+     * 消费组
      */
     private String consumerGroup;
+
     /**
      * Long polling mode, the Consumer connection max suspend time, it is not
      * recommended to modify
+     *
+     * Long polling模式 (即消费时没有消息时,阻塞在broker端，等有消息可消费时再响应)，消费端连接最长等待时间
      */
     private long brokerSuspendMaxTimeMillis = 1000 * 20;
+
     /**
      * Long polling mode, the Consumer connection timeout(must greater than
      * brokerSuspendMaxTimeMillis), it is not recommended to modify
+     *
+     * Long polling模式，消费端连接超时时间
      */
     private long consumerTimeoutMillisWhenSuspend = 1000 * 30;
+
     /**
      * The socket timeout in milliseconds
+     *
+     * 非long polling模式，socket连接超时时间
      */
     private long consumerPullTimeoutMillis = 1000 * 10;
+
     /**
      * Consumption pattern,default is clustering
+     *
+     * 消费模式，默认集群模式，即一个消费组内的实例只有一个实例会消费一次。广播模式是所有实例各消费一次，无消费组概念。
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
+
     /**
      * Message queue listener
+     *
+     * 消息队列变更监听回调函数
      */
     private MessageQueueListener messageQueueListener;
+
     /**
      * Offset Storage
+     * 消费偏移读写服务
      */
     private OffsetStore offsetStore;
+
     /**
      * Topic set you want to register
+     * 注册PullTaskCallback回调的topic集合
      */
     private Set<String> registerTopics = new HashSet<String>();
+
     /**
      * Queue allocation algorithm
+     *
+     * MessageQueue消费负载均衡策略，默认平均分配
      */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
+
     /**
      * Whether the unit of subscription group
+     *
+     * 单元模式
      */
     private boolean unitMode = false;
 
+    /**
+     * 重试队列最大重试消费次数，达到后仍未消费则放入死信队列
+     */
     private int maxReconsumeTimes = 16;
 
     public DefaultMQPullConsumer() {
@@ -225,6 +257,10 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
         return this.defaultMQPullConsumerImpl.fetchSubscribeMessageQueues(topic);
     }
 
+    /**
+     * 启动
+     * @throws MQClientException
+     */
     @Override
     public void start() throws MQClientException {
         this.defaultMQPullConsumerImpl.start();
@@ -235,6 +271,11 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
         this.defaultMQPullConsumerImpl.shutdown();
     }
 
+    /**
+     * 对 topic 注册一个监听器
+     * @param topic
+     * @param listener
+     */
     @Override
     public void registerMessageQueueListener(String topic, MessageQueueListener listener) {
         synchronized (this.registerTopics) {

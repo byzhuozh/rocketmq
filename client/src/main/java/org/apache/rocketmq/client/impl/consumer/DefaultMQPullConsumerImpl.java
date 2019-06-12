@@ -579,11 +579,17 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 启动
+     *
+     * @throws MQClientException
+     */
     public synchronized void start() throws MQClientException {
         switch (this.serviceState) {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
 
+                // 校验配置
                 this.checkConfig();
 
                 this.copySubscription();
@@ -595,7 +601,10 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                 this.mQClientFactory = MQClientManager.getInstance().getAndCreateMQClientInstance(this.defaultMQPullConsumer, this.rpcHook);
 
                 this.rebalanceImpl.setConsumerGroup(this.defaultMQPullConsumer.getConsumerGroup());
+                //设置消费集群模式
                 this.rebalanceImpl.setMessageModel(this.defaultMQPullConsumer.getMessageModel());
+
+                // 设置负载均衡器
                 this.rebalanceImpl.setAllocateMessageQueueStrategy(this.defaultMQPullConsumer.getAllocateMessageQueueStrategy());
                 this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
 
@@ -607,16 +616,18 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                 if (this.defaultMQPullConsumer.getOffsetStore() != null) {
                     this.offsetStore = this.defaultMQPullConsumer.getOffsetStore();
                 } else {
-                    switch (this.defaultMQPullConsumer.getMessageModel()) {
-                        case BROADCASTING:
+                    switch (this.defaultMQPullConsumer.getMessageModel()) { // 默认集群模式
+                        case BROADCASTING:  // 广播模式
                             this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
                             break;
-                        case CLUSTERING:
+                        case CLUSTERING:   // 集群模式
                             this.offsetStore = new RemoteBrokerOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
                             break;
                         default:
                             break;
                     }
+
+                    //启动时从持久化数据加载消费偏移到内存中
                     this.defaultMQPullConsumer.setOffsetStore(this.offsetStore);
                 }
 
@@ -633,7 +644,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
                 mQClientFactory.start();
                 log.info("the consumer [{}] start OK", this.defaultMQPullConsumer.getConsumerGroup());
-                this.serviceState = ServiceState.RUNNING;
+                this.serviceState = ServiceState.RUNNING;   // 启动成功
                 break;
             case RUNNING:
             case START_FAILED:

@@ -274,8 +274,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     public DefaultMQPushConsumer(final String consumerGroup, RPCHook rpcHook,
         AllocateMessageQueueStrategy allocateMessageQueueStrategy) {
-        this.consumerGroup = consumerGroup;
-        this.allocateMessageQueueStrategy = allocateMessageQueueStrategy;
+        this.consumerGroup = consumerGroup; // 消费组
+        this.allocateMessageQueueStrategy = allocateMessageQueueStrategy;   // 负载均衡策略
+        // mq 消费者的真正实现
         defaultMQPushConsumerImpl = new DefaultMQPushConsumerImpl(this, rpcHook);
     }
 
@@ -608,6 +609,8 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Register a callback to execute on message arrival for concurrent consuming.
+     *
+     * 注册消息监听器
      *
      * @param messageListener message handling callback.
      */
