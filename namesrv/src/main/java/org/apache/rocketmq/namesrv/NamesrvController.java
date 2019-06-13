@@ -38,23 +38,35 @@ import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.netty.TlsSystemConfig;
 import org.apache.rocketmq.srvutil.FileWatchService;
 
-
+/**
+ * Name Server服务控制
+ */
 public class NamesrvController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
+    // Name Server配置
     private final NamesrvConfig namesrvConfig;
 
+    // 通信层配置
     private final NettyServerConfig nettyServerConfig;
 
+    // 定时线程
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
+
+    /**
+     * 核心数据结构
+     */
     private final KVConfigManager kvConfigManager;
     private final RouteInfoManager routeInfoManager;
 
+    // 服务端通信层对象
     private RemotingServer remotingServer;
 
+    // 接收Broker连接事件
     private BrokerHousekeepingService brokerHousekeepingService;
 
+    // 服务端网络请求处理线程池
     private ExecutorService remotingExecutor;
 
     private Configuration configuration;
@@ -73,27 +85,36 @@ public class NamesrvController {
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
 
+    /**
+     *  nameserver 控制器 >>> 数据初始化
+     * @return
+     */
     public boolean initialize() {
 
+        // 加载KV配置
         this.kvConfigManager.load();
 
+        // 初始化通信层
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
+        // 初始化固定线程池(默认工作线程数 8 个)
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
+        //注册接收到请求之后具体的处理
         this.registerProcessor();
 
+        // 增加定时任务
+        // 每隔10s扫描broker,维护当前存活的Broker信息
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
             @Override
             public void run() {
                 NamesrvController.this.routeInfoManager.scanNotActiveBroker();
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        // 每隔 10s 打印KVConfig信息。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
             @Override
             public void run() {
                 NamesrvController.this.kvConfigManager.printAllPeriodically();
@@ -142,7 +163,7 @@ public class NamesrvController {
     }
 
     private void registerProcessor() {
-        if (namesrvConfig.isClusterTest()) {
+        if (namesrvConfig.isClusterTest()) {  // 默认 false
 
             this.remotingServer.registerDefaultProcessor(new ClusterTestRequestProcessor(this, namesrvConfig.getProductEnvName()),
                 this.remotingExecutor);

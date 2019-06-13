@@ -28,14 +28,22 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.protocol.body.KVTable;
 import org.apache.rocketmq.namesrv.NamesrvController;
+
+/**
+ * KV配置管理
+ *   加载namesrvController指定的kvConfig配置文件(常为xxx/kvConfig.json)到内存读取或增加
+ */
 public class KVConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
+    // NameServer控制类
     private final NamesrvController namesrvController;
 
+    //读写锁
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable =
-        new HashMap<String, HashMap<String, String>>();
+
+    // kv配置
+    private final HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable = new HashMap<String, HashMap<String, String>>();
 
     public KVConfigManager(NamesrvController namesrvController) {
         this.namesrvController = namesrvController;
@@ -44,6 +52,7 @@ public class KVConfigManager {
     public void load() {
         String content = null;
         try {
+            //解析kvConfigPath,默认为NamesrvConfig.kvConfigPath(../kvConfig.json),解析文件，得到内容，赋给content
             content = MixAll.file2String(this.namesrvController.getNamesrvConfig().getKvConfigPath());
         } catch (IOException e) {
             log.warn("Load KV config table exception", e);
@@ -87,6 +96,9 @@ public class KVConfigManager {
         this.persist();
     }
 
+    /**
+     * 将内存记录的configTable持久化到配置文件
+     */
     public void persist() {
         try {
             this.lock.readLock().lockInterruptibly();
