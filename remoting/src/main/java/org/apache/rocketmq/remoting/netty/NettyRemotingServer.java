@@ -111,7 +111,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         });
 
         /**
-         * 根据配置设置NIO还是Epoll来作为Selector线程池
+         * 根据配置设置NIO 还是 Epoll 来作为 Selector 线程池
          *
          * 如果是Linux平台，并且开启了native epoll，就用EpollEventLoopGroup，这个也就是用JNI，调的c写的epoll；
          * 否则，就用Java NIO的NioEventLoopGroup。

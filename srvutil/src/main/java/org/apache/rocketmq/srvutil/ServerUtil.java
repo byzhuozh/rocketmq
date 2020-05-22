@@ -31,9 +31,10 @@ public class ServerUtil {
         opt.setRequired(false);
         options.addOption(opt);
 
+        //启动的时候有一个n参数指定 namesrv 的地址，可以是单机可以是集群，启动地址之间用;分开
         opt =
             new Option("n", "namesrvAddr", true,
-                "Name server address list, eg: 192.168.0.1:9876;192.168.0.2:9876");
+                "Name server address list, eg: 192.168.0.1:9876; 192.168.0.2:9876");
         opt.setRequired(false);
         options.addOption(opt);
 

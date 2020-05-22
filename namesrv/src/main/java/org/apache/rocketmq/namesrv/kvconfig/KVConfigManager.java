@@ -52,7 +52,7 @@ public class KVConfigManager {
     public void load() {
         String content = null;
         try {
-            //解析kvConfigPath,默认为NamesrvConfig.kvConfigPath(../kvConfig.json),解析文件，得到内容，赋给content
+            //解析kvConfigPath, 默认为 NamesrvConfig.kvConfigPath(../kvConfig.json),解析文件，得到内容，赋给content
             content = MixAll.file2String(this.namesrvController.getNamesrvConfig().getKvConfigPath());
         } catch (IOException e) {
             log.warn("Load KV config table exception", e);
