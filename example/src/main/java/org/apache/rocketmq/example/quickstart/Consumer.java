@@ -32,52 +32,22 @@ public class Consumer {
 
     public static void main(String[] args) throws InterruptedException, MQClientException {
 
-        /*
-         * Instantiate with specified consumer group name.
-         */
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
-
-        /*
-         * Specify name server addresses.
-         * <p/>
-         *
-         * Alternatively, you may specify name server addresses via exporting environmental variable: NAMESRV_ADDR
-         * <pre>
-         * {@code
-         * consumer.setNamesrvAddr("name-server1-ip:9876;name-server2-ip:9876");
-         * }
-         * </pre>
-         */
-
-        /*
-         * Specify where to start in case the specified consumer group is a brand new one.
-         */
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("quick_consumer");
         consumer.setNamesrvAddr("127.0.0.1:9876");
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer.subscribe("quick_topic", "*");
 
-        /*
-         * Subscribe one more more topics to consume.
-         */
-        consumer.subscribe("TopicTest", "*");
-
-        /*
-         *  Register callback to execute on arrival of messages fetched from brokers.
-         */
         consumer.registerMessageListener(new MessageListenerConcurrently() {
-
             @Override
-            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
-                ConsumeConcurrentlyContext context) {
-                System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+                MessageExt msg = msgs.get(0);
+                String data = new String(msg.getBody());
+                System.out.printf("结果：  %s Receive New Messages: %s %n", Thread.currentThread().getName(), data);
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });
 
-        /*
-         *  Launch the consumer instance.
-         */
         consumer.start();
-
-        System.out.printf("Consumer Started.%n");
+        System.out.printf("结果： Consumer Started.%n");
     }
 }
