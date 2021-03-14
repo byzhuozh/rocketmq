@@ -68,7 +68,7 @@ public class RequestCode {
     public static final int HEART_BEAT = 34;
     // Broker Client注销
     public static final int UNREGISTER_CLIENT = 35;
-    // Broker Consumer将处理不了的消息发回服务器
+    // Consumer 将消息不了的消息发回服务器 broker
     public static final int CONSUMER_SEND_MSG_BACK = 36;
 
     // Broker Commit或者Rollback事务

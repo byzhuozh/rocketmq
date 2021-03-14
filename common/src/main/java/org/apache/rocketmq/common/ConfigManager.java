@@ -33,8 +33,10 @@ public abstract class ConfigManager {
             String jsonString = MixAll.file2String(fileName);
 
             if (null == jsonString || jsonString.length() == 0) {
+                //文件备份
                 return this.loadBak();
             } else {
+                //配置反序列化
                 this.decode(jsonString);
                 log.info("load " + fileName + " OK");
                 return true;
@@ -50,9 +52,11 @@ public abstract class ConfigManager {
     private boolean loadBak() {
         String fileName = null;
         try {
+            //从备份配置文件中读取配置
             fileName = this.configFilePath();
             String jsonString = MixAll.file2String(fileName + ".bak");
             if (jsonString != null && jsonString.length() > 0) {
+                //配置反序列化
                 this.decode(jsonString);
                 log.info("load " + fileName + " OK");
                 return true;

@@ -143,6 +143,7 @@ public class ScheduleMessageService extends ConfigManager {
 
     public boolean load() {
         boolean result = super.load();
+        //解析延迟等级
         result = result && this.parseDelayLevel();
         return result;
     }

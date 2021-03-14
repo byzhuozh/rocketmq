@@ -411,6 +411,12 @@ public class MessageDecoder {
         return map;
     }
 
+    /**
+     * 对消息进行编码
+     *
+     * @param message
+     * @return
+     */
     public static byte[] encodeMessage(Message message) {
         //only need flag, body, properties
         byte[] body = message.getBody();
@@ -420,12 +426,15 @@ public class MessageDecoder {
         //note properties length must not more than Short.MAX
         short propertiesLength = (short) propertiesBytes.length;
         int sysFlag = message.getFlag();
-        int storeSize = 4 // 1 TOTALSIZE
-            + 4 // 2 MAGICCOD
-            + 4 // 3 BODYCRC
-            + 4 // 4 FLAG
-            + 4 + bodyLen // 4 BODY
-            + 2 + propertiesLength;
+
+        //消息的大小
+        int storeSize = 4 // 1 TOTALSIZE   4个字节存储消息的大小
+            + 4 // 2 MAGICCOD            魔数
+            + 4 // 3 BODYCRC            BODYCRC
+            + 4 // 4 FLAG               标记
+            + 4 + bodyLen // 4 BODY     消息内容长度
+            + 2 + propertiesLength;     // 拓展属性的长度 short 类型
+
         ByteBuffer byteBuffer = ByteBuffer.allocate(storeSize);
         // 1 TOTALSIZE
         byteBuffer.putInt(storeSize);
@@ -482,11 +491,17 @@ public class MessageDecoder {
         return message;
     }
 
+    /**
+     * 对批量消息进行编码
+     * @param messages
+     * @return
+     */
     public static byte[] encodeMessages(List<Message> messages) {
         //TO DO refactor, accumulate in one buffer, avoid copies
         List<byte[]> encodedMessages = new ArrayList<byte[]>(messages.size());
         int allSize = 0;
         for (Message message : messages) {
+            //将消息进行编码
             byte[] tmp = encodeMessage(message);
             encodedMessages.add(tmp);
             allSize += tmp.length;

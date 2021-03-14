@@ -78,6 +78,7 @@ public class ConsumeQueue {
     public boolean load() {
         boolean result = this.mappedFileQueue.load();
         log.info("load consume queue " + this.topic + "-" + this.queueId + " " + (result ? "OK" : "Failed"));
+        //消息队列拓展加载
         if (isExtReadEnable()) {
             result &= this.consumeQueueExt.load();
         }

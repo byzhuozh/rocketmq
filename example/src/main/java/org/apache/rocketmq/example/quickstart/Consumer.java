@@ -34,6 +34,7 @@ public class Consumer {
 
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("quick_consumer");
         consumer.setNamesrvAddr("127.0.0.1:9876");
+//        consumer.setNamesrvAddr("127.0.0.1:29876");
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
         consumer.subscribe("quick_topic", "*");
 

@@ -24,23 +24,39 @@ import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
 /**
  * Client Common configuration
+ *
+ * 客户端公共配置
  */
 public class ClientConfig {
     public static final String SEND_MESSAGE_WITH_VIP_CHANNEL_PROPERTY = "com.rocketmq.sendMessageWithVIPChannel";
+
+    //nameSrv 地址
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
+
+    // 客户端的本地IP（producer、consumer）
     private String clientIP = RemotingUtil.getLocalAddress();
+
+    // 客户端的实例名称 （producer、consumer）
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+
+    //通信层异步回调线程数
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
+
     /**
      * Pulling topic information interval from the named server
+     * 轮询NameServer的时间间隔，从 nameSrv 上获取 topic 信息
      */
     private int pollNameServerInterval = 1000 * 30;
+
     /**
      * Heartbeat interval in microseconds with message broker
+     * 向Broker发送心跳包的时间间隔
      */
     private int heartbeatBrokerInterval = 1000 * 30;
+
     /**
      * Offset persistent interval for consumer
+     * 持久化 Consumer 消费进度间隔时间
      */
     private int persistConsumerOffsetInterval = 1000 * 5;
     private boolean unitMode = false;

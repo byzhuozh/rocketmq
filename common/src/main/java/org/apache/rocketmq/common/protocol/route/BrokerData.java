@@ -33,6 +33,11 @@ public class BrokerData implements Comparable<BrokerData> {
      * broker名称
      */
     private String brokerName;
+    /**
+     * key=brokerId, value=地址
+     *
+     * brokerId --> #0 表示 Master，>0 表示 Slave
+     */
     private HashMap<Long/* brokerId */, String/* broker address */> brokerAddrs;
 
     private final Random random = new Random();

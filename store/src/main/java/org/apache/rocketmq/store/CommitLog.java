@@ -88,6 +88,7 @@ public class CommitLog {
     }
 
     public boolean load() {
+        //映射文件队列加载
         boolean result = this.mappedFileQueue.load();
         log.info("load commit log " + (result ? "OK" : "Failed"));
         return result;

@@ -45,6 +45,8 @@ public class RebalanceService extends ServiceThread {
     public void run() {
         log.info(this.getServiceName() + " service started");
 
+        //长轮询， 每隔 20s 对消费者订阅主题进行一次队列重分配， 每次队列重新负载时，都是从 broker 实时查询当前消费组内的所有消费者，
+        // 因此，新加入的消费者就会在队列重分配的时候分配到正确的消息队列进行消费
         while (!this.isStopped()) {
             this.waitForRunning(waitInterval);
             //定时负载均衡

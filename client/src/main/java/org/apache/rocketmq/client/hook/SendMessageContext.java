@@ -36,6 +36,7 @@ public class SendMessageContext {
     private Object mqTraceContext;
     private Map<String, String> props;
     private DefaultMQProducerImpl producer;
+    //消息类型
     private MessageType msgType = MessageType.Normal_Msg;
 
     public MessageType getMsgType() {

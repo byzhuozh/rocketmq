@@ -113,17 +113,20 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             '}';
     }
 
+    /**
+     * 失败条目
+     */
     class FaultItem implements Comparable<FaultItem> {
         /**
-         *  对象名
+         *  broker-name
          */
         private final String name;
         /**
-         * 延迟
+         * 本次消息发送延迟
          */
         private volatile long currentLatency;
         /**
-         * 开始可用时间
+         * 故障规避开始时间
          */
         private volatile long startTimestamp;
 

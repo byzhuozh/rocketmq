@@ -22,6 +22,9 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * 批量消息
+ */
 public class MessageBatch extends Message implements Iterable<Message> {
 
     private static final long serialVersionUID = 621335151046335557L;
@@ -31,6 +34,10 @@ public class MessageBatch extends Message implements Iterable<Message> {
         this.messages = messages;
     }
 
+    /**
+     * 批量发送时，将消息列表 encode, 这样就和单条消息的处理逻辑相同
+     * @return
+     */
     public byte[] encode() {
         return MessageDecoder.encodeMessages(messages);
     }

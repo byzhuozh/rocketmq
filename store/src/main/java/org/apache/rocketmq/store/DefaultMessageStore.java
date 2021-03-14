@@ -60,6 +60,9 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 import static org.apache.rocketmq.store.config.BrokerRole.SLAVE;
 
+/**
+ * 消息存储实现
+ */
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
@@ -74,7 +77,7 @@ public class DefaultMessageStore implements MessageStore {
     private final CommitLog commitLog;
 
     /**
-     * 消费队列
+     * 消费队列存储缓存表，按 topic 分组
      */
     private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
 
@@ -94,12 +97,12 @@ public class DefaultMessageStore implements MessageStore {
     private final CleanConsumeQueueService cleanConsumeQueueService;
 
     /**
-     * 索引服务
+     * 索引服务，索引文件实现类
      */
     private final IndexService indexService;
 
     /**
-     *  MappedFile分配线程，RocketMQ使用内存映射处理
+     *  MappedFile 分配服务，分配线程，RocketMQ 使用内存映射处理
      */
     private final AllocateMappedFileService allocateMappedFileService;
 
@@ -124,7 +127,7 @@ public class DefaultMessageStore implements MessageStore {
     private final StoreStatsService storeStatsService;
 
     /**
-     * DataBuffer池
+     * DataBuffer池， 消息堆内存缓存
      */
     private final TransientStorePool transientStorePool;
 
@@ -143,22 +146,27 @@ public class DefaultMessageStore implements MessageStore {
     private final BrokerStatsManager brokerStatsManager;
 
     /**
-     * 消息达到监听器
+     * 消息达到监听器， 采用拉取长轮训模式
      */
     private final MessageArrivingListener messageArrivingListener;
+
+    /**
+     * broker 配置属性
+     */
     private final BrokerConfig brokerConfig;
 
     private volatile boolean shutdown = true;
 
     /**
-     *  检查点
+     *  文件刷盘检测点
      */
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
 
     /**
-     * 转发comitlog日志，主要是从commitlog转发到consumeQueue、commitlog index。
+     * commitlog 文件转发请求
+     * 转发commitlog日志，主要是从commitlog转发到consumeQueue、commitlog index。
      */
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
@@ -229,13 +237,14 @@ public class DefaultMessageStore implements MessageStore {
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
             if (null != scheduleMessageService) {
+                //消息加载
                 result = result && this.scheduleMessageService.load();
             }
 
-            // load Commit Log
+            // load Commit Log  加载 commitLog
             result = result && this.commitLog.load();
 
-            // load Consume Queue
+            // load Consume Queue   加载消费队列
             result = result && this.loadConsumeQueue();
 
             if (result) {
@@ -244,6 +253,7 @@ public class DefaultMessageStore implements MessageStore {
 
                 this.indexService.load(lastExitOK);
 
+                //恢复
                 this.recover(lastExitOK);
 
                 log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());
@@ -1312,6 +1322,7 @@ public class DefaultMessageStore implements MessageStore {
         if (fileTopicList != null) {
 
             for (File fileTopic : fileTopicList) {
+                //文件名是topic名
                 String topic = fileTopic.getName();
 
                 File[] fileQueueIdList = fileTopic.listFiles();
@@ -1327,9 +1338,15 @@ public class DefaultMessageStore implements MessageStore {
                             topic,
                             queueId,
                             StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
+                            //消费队列文件默认大小30w
                             this.getMessageStoreConfig().getMapedFileSizeConsumeQueue(),
+                           //存储消息队列
                             this);
+
+                        //将消息队列放到缓存
                         this.putConsumeQueue(topic, queueId, logic);
+
+                        //消息队列加载
                         if (!logic.load()) {
                             return false;
                         }
@@ -1344,14 +1361,18 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private void recover(final boolean lastExitOK) {
+        //恢复消息队列
         long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
 
         if (lastExitOK) {
+            //正常恢复commitLog
             this.commitLog.recoverNormally(maxPhyOffsetOfConsumeQueue);
         } else {
+            //异常恢复commitLog
             this.commitLog.recoverAbnormally(maxPhyOffsetOfConsumeQueue);
         }
 
+        //恢复topicQueue信息
         this.recoverTopicQueueTable();
     }
 
@@ -1378,6 +1399,7 @@ public class DefaultMessageStore implements MessageStore {
         long maxPhysicOffset = -1;
         for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
             for (ConsumeQueue logic : maps.values()) {
+                //恢复单个消息队列
                 logic.recover();
                 if (logic.getMaxPhysicOffset() > maxPhysicOffset) {
                     maxPhysicOffset = logic.getMaxPhysicOffset();

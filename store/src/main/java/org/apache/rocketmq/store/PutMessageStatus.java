@@ -16,15 +16,37 @@
  */
 package org.apache.rocketmq.store;
 
+/**
+ * 消息发送存储状态
+ */
 public enum PutMessageStatus {
+    //正常状态
     PUT_OK,
+
+    //同步刷盘 且 需要落盘应答的场景,flush超时
     FLUSH_DISK_TIMEOUT,
+
+    //同步刷盘止之后master需要同步到slave 且 需要落盘应答的场景， slave的flush超时,参考CommitLog.handleHA()
     FLUSH_SLAVE_TIMEOUT,
+
+    //同步刷盘止之后master需要同步到slave 且 需要落盘应答的场景， 没有可用的slave,参考CommitLog.handleHA()
     SLAVE_NOT_AVAILABLE,
+
+    //服务不可用
     SERVICE_NOT_AVAILABLE,
+
+    //创建 mapedFile 失败
     CREATE_MAPEDFILE_FAILED,
+
+    //消息不合法，主要是消息体过大，或者topic长度过长
     MESSAGE_ILLEGAL,
+
+    //消息的 properties 大小超过了Short.MAX_VALUE
     PROPERTIES_SIZE_EXCEEDED,
+
+    //最近一段时间内写消息操作还没有完成，则为忙
     OS_PAGECACHE_BUSY,
+
+    //未知异常
     UNKNOWN_ERROR,
 }

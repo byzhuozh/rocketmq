@@ -24,16 +24,16 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
 public class ConsumerSendMsgBackRequestHeader implements CommandCustomHeader {
     @CFNotNull
-    private Long offset;
+    private Long offset;  //消息的物理偏移量
     @CFNotNull
-    private String group;
+    private String group;  //消费组
     @CFNotNull
-    private Integer delayLevel;
-    private String originMsgId;
-    private String originTopic;
+    private Integer delayLevel;  //延迟级别  不支持准确的时间  org.apache.rocketmq.store.config.MessageStoreConfig.messageDelayLevel
+    private String originMsgId;   //原消息ID
+    private String originTopic;   //原topic
     @CFNullable
     private boolean unitMode = false;
-    private Integer maxReconsumeTimes;
+    private Integer maxReconsumeTimes;  //最大的重新消费次数  默认 16次
 
     @Override
     public void checkFields() throws RemotingCommandException {

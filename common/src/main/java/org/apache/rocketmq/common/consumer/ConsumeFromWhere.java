@@ -22,8 +22,9 @@ package org.apache.rocketmq.common.consumer;
 public enum ConsumeFromWhere {
 
     /**
-     * 一个新的订阅组第一次启动从队列的最后位置开始消费<br>
-     * 后续再启动接着上次消费的进度开始消费
+     * 从队列当前最大偏移量开始消费
+     *
+     * 第一次启动从队列最后位置消费，后续再启动接着上次消费的进度开始消费
      */
     CONSUME_FROM_LAST_OFFSET,
 
@@ -35,15 +36,22 @@ public enum ConsumeFromWhere {
     CONSUME_FROM_MAX_OFFSET,
 
     /**
-     * 一个新的订阅组第一次启动从队列的最前位置开始消费<br>
-     * 后续再启动接着上次消费的进度开始消费
+     * 第一次启动从队列初始位置消费，后续再启动接着上次消费的进度开始消费
+     *
+     * 即：从队列当前最小偏移量开始消费
      */
     CONSUME_FROM_FIRST_OFFSET,
 
     /**
-     * 一个新的订阅组第一次启动从指定时间点开始消费<br>
-     * 后续再启动接着上次消费的进度开始消费<br>
-     * 时间点设置参见DefaultMQPushConsumer.consumeTimestamp参数
+     * 第一次启动从指定时间点位置消费，后续再启动接着上次消费的进度开始消费
+     *
+     * 从消费者启动时间戳开始消费
      */
     CONSUME_FROM_TIMESTAMP,
+
+    /**
+     * 注意：
+     *  以上所说的第一次启动是指从来没有消费过的消费者，如果该消费者消费过，那么会在broker端记录该消费者的消费位置，
+     *  如果该消费者挂了再启动，那么自动从上次消费的进度开始
+     */
 }

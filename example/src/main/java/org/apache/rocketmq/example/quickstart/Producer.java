@@ -30,9 +30,11 @@ public class Producer {
 
         DefaultMQProducer producer = new DefaultMQProducer("quick_producer");
         producer.setNamesrvAddr("127.0.0.1:9876");
+//        producer.setNamesrvAddr("127.0.0.1:19876");
+//        producer.setSendMsgTimeout(6000);
         producer.start();
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 20; i++) {
             try {
                 Message msg = new Message("quick_topic" /* Topic */,
                     "TagA" /* Tag */,
@@ -45,7 +47,7 @@ public class Producer {
                 Thread.sleep(1000);
             }
         }
-//        producer.shutdown();
+        producer.shutdown();
 
     }
 }

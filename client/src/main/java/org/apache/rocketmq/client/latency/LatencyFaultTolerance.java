@@ -17,6 +17,9 @@
 
 package org.apache.rocketmq.client.latency;
 
+/**
+ * 延迟机制接口规范
+ */
 public interface LatencyFaultTolerance<T> {
 
     /**
@@ -29,22 +32,22 @@ public interface LatencyFaultTolerance<T> {
     void updateFaultItem(final T name, final long currentLatency, final long notAvailableDuration);
 
     /**
-     * 对象是否可用
+     * 判断 broker 是否可用
      *
-     * @param name  对象
+     * @param name  broker-name
      * @return
      */
     boolean isAvailable(final T name);
 
     /**
-     * 移除对象
+     * 移除 Fault 条目，意味着 Broker 重新参与路由计算
      *
-     * @param name   对象
+     * @param name   broker-name
      */
     void remove(final T name);
 
     /**
-     * 获取一个对象
+     * 尝试从规避的 Broker 中选择一个可用的 Broker, 如果没有，则返回 null
      *
      * @return  对象
      */

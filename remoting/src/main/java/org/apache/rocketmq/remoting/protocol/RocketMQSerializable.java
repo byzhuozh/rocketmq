@@ -24,6 +24,22 @@ import java.util.Map;
 
 /**
  * mq协议格式 序列化
+ *
+ *  ----------------------------------------------------------
+ * |-----code(16)-------|-language(8)-|-----version(16)-----|
+ * |-----------------opaque(32)------------------|
+ * |-----------------flag(32)--------------------|
+ * |--------------remarkLength(32)---------------|
+ * |-----------------remark-----------------.....
+ * ..............................................|
+ * |-------------extFieldsLength(32)-------------|
+ * |-----------------extField------------........
+ * ..............................................
+ * ----------------------------------------------|
+ * ------------------------------------------------------------
+ ————————————————
+ 版权声明：本文为CSDN博主「xuxiaoxi10」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+ 原文链接：https://blog.csdn.net/weixin_42334142/article/details/105967804
  */
 public class RocketMQSerializable {
     private static final Charset CHARSET_UTF8 = Charset.forName("UTF-8");
@@ -41,12 +57,15 @@ public class RocketMQSerializable {
         byte[] extFieldsBytes = null;
         int extLen = 0;
         if (cmd.getExtFields() != null && !cmd.getExtFields().isEmpty()) {
+            //map形式的参数序列化
             extFieldsBytes = mapSerialize(cmd.getExtFields());
             extLen = extFieldsBytes.length;
         }
 
+        //计算总长
         int totalLen = calTotalLen(remarkLen, extLen);
 
+        //分配缓冲区
         ByteBuffer headerBuffer = ByteBuffer.allocate(totalLen);
         // int code(~32767)
         headerBuffer.putShort((short) cmd.getCode());
@@ -138,6 +157,7 @@ public class RocketMQSerializable {
 
     public static RemotingCommand rocketMQProtocolDecode(final byte[] headerArray) {
         RemotingCommand cmd = new RemotingCommand();
+        // 把消息头byte数组包装成缓冲区
         ByteBuffer headerBuffer = ByteBuffer.wrap(headerArray);
         // int code(~32767)
         cmd.setCode(headerBuffer.getShort());
@@ -162,6 +182,7 @@ public class RocketMQSerializable {
         if (extFieldsLength > 0) {
             byte[] extFieldsBytes = new byte[extFieldsLength];
             headerBuffer.get(extFieldsBytes);
+            // map 形式数据反序列化
             cmd.setExtFields(mapDeserialize(extFieldsBytes));
         }
         return cmd;

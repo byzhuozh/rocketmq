@@ -29,6 +29,9 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+/**
+ * 顺序发送
+ */
 public class Producer {
     public static void main(String[] args) throws UnsupportedEncodingException {
         try {
@@ -41,6 +44,7 @@ public class Producer {
                 Message msg =
                     new Message("TopicTestjjj", tags[i % tags.length], "KEY" + i,
                         ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET));
+
                 SendResult sendResult = producer.send(msg, new MessageQueueSelector() {
                     @Override
                     public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
@@ -49,6 +53,16 @@ public class Producer {
                         return mqs.get(index);
                     }
                 }, orderId);
+
+
+                //全部往第一个队列中发送
+                sendResult = producer.send(msg, new MessageQueueSelector() {
+                    @Override
+                    public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
+                        Integer id = (Integer) arg;
+                        return mqs.get(id);
+                    }
+                }, 1);   // 此时的1 就是 MessageQueue#select 发放中的最后一个参数 arg
 
                 System.out.printf("%s%n", sendResult);
             }

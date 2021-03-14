@@ -18,8 +18,11 @@ package org.apache.rocketmq.client.consumer;
 
 /**
  * Async message pulling interface
+ *
+ * 异步拉取消息接口
  */
 public interface PullCallback {
+
     void onSuccess(final PullResult pullResult);
 
     void onException(final Throwable e);

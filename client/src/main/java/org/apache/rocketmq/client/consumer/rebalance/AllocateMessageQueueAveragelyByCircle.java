@@ -25,13 +25,19 @@ import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
  * Cycle average Hashing queue algorithm
+ *
+ * 八个消息队列： q1, q2, q3, q4, q5, q6, q7, q8
+ * c1: q1, q4, q7
+ * c2: q2, q5, q8
+ * c3: q3, q6
+ *
+ * 环形分配策略
  */
 public class AllocateMessageQueueAveragelyByCircle implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
     @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
+    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll, List<String> cidAll) {
         if (currentCID == null || currentCID.length() < 1) {
             throw new IllegalArgumentException("currentCID is empty");
         }
@@ -51,13 +57,26 @@ public class AllocateMessageQueueAveragelyByCircle implements AllocateMessageQue
             return result;
         }
 
-        int index = cidAll.indexOf(currentCID);
+        int index = cidAll.indexOf(currentCID);  // 当前consumer 的下标
         for (int i = index; i < mqAll.size(); i++) {
-            if (i % cidAll.size() == index) {
+            if (i % cidAll.size() == index) {  // 下标为i 的MessageQueue 分别给 下标为i 的 consumer
                 result.add(mqAll.get(i));
             }
         }
         return result;
+    }
+
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<String>();
+        list.add("A");
+        list.add("B");
+        list.add("C");
+        int index = list.indexOf("A");
+        for (int i = index; i < 8; i++) {
+            if (i % list.size() == index) {
+                System.out.println(i);
+            }
+        }
     }
 
     @Override

@@ -73,15 +73,20 @@ public class NamesrvController {
     private FileWatchService fileWatchService;
 
     public NamesrvController(NamesrvConfig namesrvConfig, NettyServerConfig nettyServerConfig) {
+        //nameserv参数配置
         this.namesrvConfig = namesrvConfig;
+        //netty的参数配置
         this.nettyServerConfig = nettyServerConfig;
         this.kvConfigManager = new KVConfigManager(this);
+        //初始化RouteInfoManager [负责缓存整个集群的broker信息，以及topic和queue的配置信息]
         this.routeInfoManager = new RouteInfoManager();
+        //监听客户端连接(Channel)的变化，通知RouteInfoManager检查broker是否有变化
         this.brokerHousekeepingService = new BrokerHousekeepingService(this);
         this.configuration = new Configuration(
             log,
             this.namesrvConfig, this.nettyServerConfig
         );
+        //Nameserv的配置参数会保存到磁盘文件中
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
 
@@ -90,22 +95,21 @@ public class NamesrvController {
      * @return
      */
     public boolean initialize() {
-
-        // 加载KV配置
+        // 加载KV配置  KVConfigManager
         this.kvConfigManager.load();
 
-        // 初始化通信层
+        // 初始化netty server
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
-        // 初始化固定线程池(默认工作线程数 8 个)
+        // 初始化固定线程池(默认工作线程数 8 个)   客户端请求处理的线程池
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
-        //注册接收到请求之后具体的处理
+        //注册接收到请求之后具体的处理   注册DefaultRequestProcessor，所有的客户端请求都会转给这个Processor来处理
         this.registerProcessor();
 
         // 增加定时任务
-        // 每隔10s扫描broker,维护当前存活的Broker信息
+        // 启动定时调度，每10秒钟扫描所有Broker，检查存活状态
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -113,7 +117,7 @@ public class NamesrvController {
             }
         }, 5, 10, TimeUnit.SECONDS);
 
-        // 每隔 10s 打印KVConfig信息。
+        // 每隔 10s 打印KVConfig信息。  日志打印的调度器，定时打印kvConfigManager的内容
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -121,6 +125,7 @@ public class NamesrvController {
             }
         }, 1, 10, TimeUnit.MINUTES);
 
+        // 监听ssl证书文件变化
         if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
             // Register a listener to reload SslContext
             try {
@@ -163,12 +168,13 @@ public class NamesrvController {
     }
 
     private void registerProcessor() {
+        // 是否开启集群测试
         if (namesrvConfig.isClusterTest()) {  // 默认 false
-
+            // 注册集群测试请求处理器
             this.remotingServer.registerDefaultProcessor(new ClusterTestRequestProcessor(this, namesrvConfig.getProductEnvName()),
                 this.remotingExecutor);
         } else {
-
+            // 注册默认的请求处理器
             this.remotingServer.registerDefaultProcessor(new DefaultRequestProcessor(this), this.remotingExecutor);
         }
     }

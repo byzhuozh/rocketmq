@@ -53,6 +53,7 @@ public class LocalFileOffsetStore implements OffsetStore {
     private final String storePath;  // 持久化存储文件路径
 
     // 内存存储的各MessageQueue的消费偏移，ConcurrentMap和AtomicLong控制并发
+    // 对应着本地的文件  offsets.json
     private ConcurrentMap<MessageQueue, AtomicLong> offsetTable = new ConcurrentHashMap<MessageQueue, AtomicLong>();
 
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
@@ -152,9 +153,11 @@ public class LocalFileOffsetStore implements OffsetStore {
             }
         }
 
+        //消费进度序列化
         String jsonString = offsetSerializeWrapper.toJson(true);
         if (jsonString != null) {
             try {
+                //消费进度持久化到本地文件
                 MixAll.string2File(jsonString, this.storePath);
             } catch (IOException e) {
                 log.error("persistAll consumer offset Exception, " + this.storePath, e);

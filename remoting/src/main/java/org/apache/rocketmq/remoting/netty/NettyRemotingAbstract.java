@@ -204,6 +204,7 @@ public abstract class NettyRemotingAbstract {
                 public void run() {
                     try {
                         //rpc hook
+                        // 这里mq提供了一些钩子方法可以扩展的地方，请求前处理逻辑可以在这里扩展
                         doBeforeRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd);
 
                         //processor处理请求
@@ -212,6 +213,7 @@ public abstract class NettyRemotingAbstract {
                         //rpc hook
                         doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd, response);
 
+                        // 如果不是单线请求
                         if (!cmd.isOnewayRPC()) {
                             if (response != null) {
                                 response.setOpaque(opaque);
@@ -429,8 +431,11 @@ public abstract class NettyRemotingAbstract {
 
         try {
             final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis, null, null);
+            //返回结果缓存
             this.responseTable.put(opaque, responseFuture);
+
             final SocketAddress addr = channel.remoteAddress();
+            //发送消息
             channel.writeAndFlush(request).addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture f) throws Exception {
@@ -448,6 +453,7 @@ public abstract class NettyRemotingAbstract {
                 }
             });
 
+            //等待 timeoutMillis 毫秒
             RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
             if (null == responseCommand) {
                 if (responseFuture.isSendRequestOK()) {

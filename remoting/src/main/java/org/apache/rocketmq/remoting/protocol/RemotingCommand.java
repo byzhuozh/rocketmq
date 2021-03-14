@@ -77,11 +77,17 @@ public class RemotingCommand {
      */
     private int code;   // {@link org.apache.rocketmq.common.protocol.RequestCode}
     private LanguageCode language = LanguageCode.JAVA;
+    //版本号
     private int version = 0;
+    //客户端请求序号
     private int opaque = requestId.getAndIncrement();
+    //标记：倒数第一位表示请求类型：0：请求，1：返回   倒数第二位：1： 表示 oneway
     private int flag = 0;
+    //描述
     private String remark;
+    //扩展属性
     private HashMap<String, String> extFields;
+    //每个请求对应的请求头信息
     private transient CommandCustomHeader customHeader;
 
     private SerializeType serializeTypeCurrentRPC = serializeTypeConfigInThisServer;
@@ -168,6 +174,7 @@ public class RemotingCommand {
         byteBuffer.get(headerData); // 接下来从缓冲区中读取headerLength个字节的数据，这个数据就是报文头部的数据
 
         // getProtocolType获取rpc类型之后按照该类型反序列化
+        // 根据消息头中传入的序列化类型解码
         RemotingCommand cmd = headerDecode(headerData, getProtocolType(oriHeaderLen));
 
         int bodyLength = length - 4 - headerLength;
@@ -187,12 +194,12 @@ public class RemotingCommand {
 
     private static RemotingCommand headerDecode(byte[] headerData, SerializeType type) {
         switch (type) {
-            case JSON:
+            case JSON:  //header json形式解码
                 // 数据转换成RemotingCommand 对象
                 RemotingCommand resultJson = RemotingSerializable.decode(headerData, RemotingCommand.class);
                 resultJson.setSerializeTypeCurrentRPC(type);
                 return resultJson;
-            case ROCKETMQ:
+            case ROCKETMQ:  //mq代理反序列化
                 RemotingCommand resultRMQ = RocketMQSerializable.rocketMQProtocolDecode(headerData);
                 resultRMQ.setSerializeTypeCurrentRPC(type);
                 return resultRMQ;
@@ -394,8 +401,10 @@ public class RemotingCommand {
     private byte[] headerEncode() {
         this.makeCustomHeaderToNet();
         if (SerializeType.ROCKETMQ == serializeTypeCurrentRPC) {
+            //mq代理编码
             return RocketMQSerializable.rocketMQProtocolEncode(this);
         } else {
+            //json编码
             return RemotingSerializable.encode(this);
         }
     }
@@ -433,11 +442,12 @@ public class RemotingCommand {
     }
 
     public ByteBuffer encodeHeader(final int bodyLength) {
-        // 1> header length size
+        // 1> header length size 消息头长度
         int length = 4;
 
         // 2> header data length
         byte[] headerData;
+        //消息头数据编码
         headerData = this.headerEncode();
 
         length += headerData.length;
@@ -445,6 +455,7 @@ public class RemotingCommand {
         // 3> body data length
         length += bodyLength;
 
+        //分配缓冲区
         ByteBuffer result = ByteBuffer.allocate(4 + length - bodyLength);
 
         // length

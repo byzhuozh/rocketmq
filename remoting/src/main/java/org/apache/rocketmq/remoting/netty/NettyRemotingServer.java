@@ -90,17 +90,20 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     }
 
     public NettyRemotingServer(final NettyServerConfig nettyServerConfig, final ChannelEventListener channelEventListener) {
+        //用信号量来控制并发数
         super(nettyServerConfig.getServerOnewaySemaphoreValue(), nettyServerConfig.getServerAsyncSemaphoreValue());
 
         this.serverBootstrap = new ServerBootstrap();
         this.nettyServerConfig = nettyServerConfig;
         this.channelEventListener = channelEventListener;
 
+        //默认netty server回调线程是4
         int publicThreadNums = nettyServerConfig.getServerCallbackExecutorThreads();
         if (publicThreadNums <= 0) {
             publicThreadNums = 4;
         }
 
+        //创建核心线程数是4个的线程池
         this.publicExecutor = Executors.newFixedThreadPool(publicThreadNums, new ThreadFactory() {
             private AtomicInteger threadIndex = new AtomicInteger(0);
 
@@ -126,6 +129,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                 }
             });
 
+            //selctor默认是3个线程
             this.eventLoopGroupSelector = new EpollEventLoopGroup(nettyServerConfig.getServerSelectorThreads(), new ThreadFactory() {
                 private AtomicInteger threadIndex = new AtomicInteger(0);
                 private int threadTotal = nettyServerConfig.getServerSelectorThreads();
@@ -146,6 +150,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                 }
             });
 
+            //selctor默认是3个线程
             this.eventLoopGroupSelector = new NioEventLoopGroup(nettyServerConfig.getServerSelectorThreads(), new ThreadFactory() {
                 private AtomicInteger threadIndex = new AtomicInteger(0);
                 private int threadTotal = nettyServerConfig.getServerSelectorThreads();
@@ -204,7 +209,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
          * 然后监听真正的网络数据;
          * 拿到网络数据后，再丢给 Worker 线程池;
          */
-        //RocketMQ-> Java NIO的1+N+M模型：1个acceptor线程，N个IO线程，M1个worker 线程。
+        //RocketMQ-> Java NIO的1+N+M模型：1个acceptor线程，N个IO线程，M个worker 线程。
         ServerBootstrap childHandler =
             this.serverBootstrap.group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
                 //指定EpollServerSocketChannel或者NioServerSocketChannel类初始化channel用来接受客户端请求。
@@ -225,8 +230,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                             .addLast(defaultEventExecutorGroup, HANDSHAKE_HANDLER_NAME,
                                     new HandshakeHandler(TlsSystemConfig.tlsMode))
                             .addLast(defaultEventExecutorGroup,
-                                new NettyEncoder(), //rocketmq解码器,他们分别覆盖了父类的encode和decode方法
-                                new NettyDecoder(), //rocketmq编码器
+                                new NettyEncoder(), //rocketmq编码器,他们分别覆盖了父类的encode和decode方法
+                                new NettyDecoder(), //rocketmq解码器
                                 //Netty自带的心跳管理器
                                 new IdleStateHandler(0, 0, nettyServerConfig.getServerChannelMaxIdleTimeSeconds()),
                                 new NettyConnectManageHandler(), // 连接管理器，他负责捕获新连接、连接断开、异常等事件，然后统一调度到NettyEventExecuter处理器处理。
@@ -455,6 +460,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
             //连接事件
             if (NettyRemotingServer.this.channelEventListener != null) {
+                // 发布netty事件，阻塞队列实现同步
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CONNECT, remoteAddress, ctx.channel()));
             }
         }
@@ -465,8 +471,9 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             log.info("NETTY SERVER PIPELINE: channelInactive, the channel[{}]", remoteAddress);
             super.channelInactive(ctx);
 
-            //关闭
+            //关闭连接
             if (NettyRemotingServer.this.channelEventListener != null) {
+                //发布关闭连接事件
                 NettyRemotingServer.this.putNettyEvent(new NettyEvent(NettyEventType.CLOSE, remoteAddress, ctx.channel()));
             }
         }

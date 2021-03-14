@@ -86,8 +86,11 @@ public class RebalancePushImpl extends RebalanceImpl {
 
     @Override
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
+        //通知 broker 持久化 mq 的消费进度
         this.defaultMQPushConsumerImpl.getOffsetStore().persist(mq);
+        //移除消费指针存储中的消息队列
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
+        //
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly()
             && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
@@ -149,13 +152,17 @@ public class RebalancePushImpl extends RebalanceImpl {
             case CONSUME_FROM_LAST_OFFSET_AND_FROM_MIN_WHEN_BOOT_FIRST:
             case CONSUME_FROM_MIN_OFFSET:
             case CONSUME_FROM_MAX_OFFSET:
-            case CONSUME_FROM_LAST_OFFSET: {
+            case CONSUME_FROM_LAST_OFFSET: {  // 从队列当前最大偏移量开始消费
+                //从磁盘中读取消息队列的消费进度
                 long lastOffset = offsetStore.readOffset(mq, ReadOffsetType.READ_FROM_STORE);
                 if (lastOffset >= 0) {
                     result = lastOffset;
                 }
+
                 // First start,no offset
+                // -1 表示消息队列刚创建
                 else if (-1 == lastOffset) {
+                    //如果 topic 是重试 topic 类型
                     if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         result = 0L;
                     } else {

@@ -29,8 +29,9 @@ public class MQClientManager {
     private final static InternalLogger log = ClientLogger.getLog();
     private static MQClientManager instance = new MQClientManager();
     private AtomicInteger factoryIndexGenerator = new AtomicInteger();
-    private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable =
-        new ConcurrentHashMap<String, MQClientInstance>();
+
+    //
+    private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable = new ConcurrentHashMap<String, MQClientInstance>();
 
     private MQClientManager() {
 
@@ -45,7 +46,10 @@ public class MQClientManager {
     }
 
     public MQClientInstance getAndCreateMQClientInstance(final ClientConfig clientConfig, RPCHook rpcHook) {
+        //IP + instanceName + unitname(可选)， 如果是同一个 jvm, 消费者和生产者 client 是相同的
         String clientId = clientConfig.buildMQClientId();
+
+        //从本地缓存中获取client对象，简单的一般会concurrentHashMap当本地缓存，性能很高
         MQClientInstance instance = this.factoryTable.get(clientId);
         if (null == instance) {
             instance =

@@ -26,6 +26,9 @@ import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
 
+/**
+ * 顺序消费
+ */
 public class Consumer {
 
     public static void main(String[] args) throws MQClientException {
