@@ -149,10 +149,10 @@ public class MQClientInstance {
         //topic，队列，消息管理接口
         this.mQAdminImpl = new MQAdminImpl(this);
 
-        //消费者 push方式中，异步线程处理拉消息请求
+        //消费者 pull 方式中，异步线程处理拉消息请求
         this.pullMessageService = new PullMessageService(this);
 
-        //定时任务，调用消费端负载均衡服务
+        //定时任务，调用消费端负载均衡服务，给consumer重新调整和分配queue
         this.rebalanceService = new RebalanceService(this);
 
         //创建一个group为CLIENT_INNER_PRODUCER_GROUP 的producer, 该producer主要用于将消息发回Broker
@@ -274,11 +274,11 @@ public class MQClientInstance {
                     this.startScheduledTask();
 
                     // Start pull service   启动pull服务
-                    // 启动消息拉取服务
+                    // 启动消息拉取服务   PullMessageService
                     this.pullMessageService.start();
 
                     // Start rebalance service   启动负载均衡服务
-                    // 启动Rebalance拉取服务
+                    // 启动 Rebalance 拉取服务,  给consumer重新调整和分配queue
                     this.rebalanceService.start();
 
                     // 启动内置 producer
@@ -319,7 +319,7 @@ public class MQClientInstance {
             @Override
             public void run() {
                 try {
-                    //更新producer、 consumer 的路由信心
+                    //更新producer、 consumer 的路由信息
                     MQClientInstance.this.updateTopicRouteInfoFromNameServer();
                 } catch (Exception e) {
                     log.error("ScheduledTask updateTopicRouteInfoFromNameServer exception", e);
@@ -558,6 +558,7 @@ public class MQClientInstance {
     }
 
     private void sendHeartbeatToAllBroker() {
+        //客户端的心跳数据（包含producer 和 consumer）
         final HeartbeatData heartbeatData = this.prepareHeartbeatData();
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
         final boolean consumerEmpty = heartbeatData.getConsumerDataSet().isEmpty();
@@ -584,10 +585,12 @@ public class MQClientInstance {
                             }
 
                             try {
+                                //向 broker 发送心跳包
                                 int version = this.mQClientAPIImpl.sendHearbeat(addr, heartbeatData, 3000);
                                 if (!this.brokerVersionTable.containsKey(brokerName)) {
                                     this.brokerVersionTable.put(brokerName, new HashMap<String, Integer>(4));
                                 }
+                                //broker 版本
                                 this.brokerVersionTable.get(brokerName).put(addr, version);
                                 if (times % 20 == 0) {
                                     log.info("send heart beat to broker[{} {} {}] success", brokerName, id, addr);
@@ -638,7 +641,7 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
-                    if (isDefault && defaultMQProducer != null) {
+                    if (isDefault && defaultMQProducer != null) {  // 自动创建 topic 时，默认 true
                         //使用 默认主题 查询
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
                         if (topicRouteData != null) {

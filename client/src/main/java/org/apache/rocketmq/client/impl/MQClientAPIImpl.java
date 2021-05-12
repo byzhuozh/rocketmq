@@ -261,9 +261,12 @@ public class MQClientAPIImpl {
         requestHeader.setDefaultTopic(defaultTopic);
         requestHeader.setReadQueueNums(topicConfig.getReadQueueNums());
         requestHeader.setWriteQueueNums(topicConfig.getWriteQueueNums());
+        //设置topic的权限，可读，可写
         requestHeader.setPerm(topicConfig.getPerm());
+        //设置topic支持的消息过滤类型
         requestHeader.setTopicFilterType(topicConfig.getTopicFilterType().name());
         requestHeader.setTopicSysFlag(topicConfig.getTopicSysFlag());
+        //设置是否是顺序消息topic
         requestHeader.setOrder(topicConfig.isOrder());
 
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UPDATE_AND_CREATE_TOPIC, requestHeader);
@@ -994,6 +997,7 @@ public class MQClientAPIImpl {
         final String addr,
         final LockBatchRequestBody requestBody,
         final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
+
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.LOCK_BATCH_MQ, null);
 
         request.setBody(requestBody.encode());
@@ -1247,6 +1251,7 @@ public class MQClientAPIImpl {
             case ResponseCode.SUCCESS: {
                 byte[] body = response.getBody();
                 if (body != null) {
+                    // 解析响应
                     return TopicRouteData.decode(body, TopicRouteData.class);
                 }
             }

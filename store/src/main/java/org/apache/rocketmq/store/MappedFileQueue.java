@@ -29,21 +29,30 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * MappedFile 管理器，是对存储目录的封装
+ */
 public class MappedFileQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static final InternalLogger LOG_ERROR = InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
     private static final int DELETE_FILES_BATCH_MAX = 10;
 
+    //存储目录
     private final String storePath;
 
+    //单个文件的存储大小
     private final int mappedFileSize;
 
+    //mappedFils 文件集合
     private final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<MappedFile>();
 
+    //创建 mappedFile 的服务
     private final AllocateMappedFileService allocateMappedFileService;
 
+    //当前的刷盘指针，表示该指针之前的数据全部持久化到磁盘
     private long flushedWhere = 0;
+    //当前数据的提交指针，内存 ByteBuffer 当前的写指针， 大于等于 flushedWhere
     private long committedWhere = 0;
 
     private volatile long storeTimestamp = 0;
@@ -152,10 +161,9 @@ public class MappedFileQueue {
             Arrays.sort(files);
             for (File file : files) {
 
-                // 队列映射文件的大小不等于1G
+                // 队列映射文件的大小不等于1G( 默认 1G),直接退出
                 if (file.length() != this.mappedFileSize) {
-                    log.warn(file + "\t" + file.length()
-                        + " length not matched message store config value, ignore it");
+                    log.warn(file + "\t" + file.length() + " length not matched message store config value, ignore it");
                     return true;
                 }
 
@@ -163,6 +171,7 @@ public class MappedFileQueue {
                     //创建映射文件
                     MappedFile mappedFile = new MappedFile(file.getPath(), mappedFileSize);
 
+                    //将文件的数据写位置、磁盘刷入位置、提交位置 都初始化为 文件大小
                     mappedFile.setWrotePosition(this.mappedFileSize);
                     mappedFile.setFlushedPosition(this.mappedFileSize);
                     mappedFile.setCommittedPosition(this.mappedFileSize);
@@ -214,17 +223,19 @@ public class MappedFileQueue {
 
         if (createOffset != -1 && needCreate) {  // 创建文件
 
-            //文件路径命名规则：在上一个文件的大小的基础上 + 1 = 下一个文件的名称
+            //文件路径命名规则：在上一个文件的大小的基础上 + 文件的固定大小 = 下一个文件的名称
+            // fileName[n] = fileName[n - 1] + n * mappedFileSize     fileName[0] = startOffset - (startOffset % this.mappedFileSize)
             String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
-            String nextNextFilePath = this.storePath + File.separator
-                + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
+            String nextNextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
             MappedFile mappedFile = null;
 
             if (this.allocateMappedFileService != null) {
+                // 异步创建文件，基于 mmap 映射
                 mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath,
                     nextNextFilePath, this.mappedFileSize);
             } else {
                 try {
+                    // 创建文件
                     mappedFile = new MappedFile(nextFilePath, this.mappedFileSize);
                 } catch (IOException e) {
                     log.error("create mappedFile exception", e);
@@ -300,6 +311,10 @@ public class MappedFileQueue {
         return true;
     }
 
+    /**
+     * 获取最小偏移量
+     * @return
+     */
     public long getMinOffset() {
 
         if (!this.mappedFiles.isEmpty()) {
@@ -314,6 +329,10 @@ public class MappedFileQueue {
         return -1;
     }
 
+    /**
+     * 获取最大偏移量
+     * @return
+     */
     public long getMaxOffset() {
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
@@ -348,7 +367,7 @@ public class MappedFileQueue {
         }
     }
 
-    public int deleteExpiredFileByTime(final long expiredTime,
+    public int deleteExpiredFileByTime(final long expiredTime,  // 默认 72 小时
         final int deleteFilesInterval,
         final long intervalForcibly,
         final boolean cleanImmediately) {
@@ -360,15 +379,19 @@ public class MappedFileQueue {
         int mfsLength = mfs.length - 1;
         int deleteCount = 0;
         List<MappedFile> files = new ArrayList<MappedFile>();
+
         if (null != mfs) {
+            //从倒数第二个文件开始遍历
             for (int i = 0; i < mfsLength; i++) {
                 MappedFile mappedFile = (MappedFile) mfs[i];
                 long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
+                //文件的最大存活时间 = 最近一次更新时间 + 文件存活时间
                 if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
                     if (mappedFile.destroy(intervalForcibly)) {
                         files.add(mappedFile);
                         deleteCount++;
 
+                        //控制文件的最大删除个数
                         if (files.size() >= DELETE_FILES_BATCH_MAX) {
                             break;
                         }
@@ -439,11 +462,17 @@ public class MappedFileQueue {
 
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
+        // 根据 flushedWhere 找到上一次刷盘指针的对应的文件
+        // this.flushedWhere == 0 如果上一次的刷盘位置是在0位置，则返回第一个 MappedFile
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
+            // 刷盘后的偏移量
             int offset = mappedFile.flush(flushLeastPages);
+            // 当前文件的可写位置
             long where = mappedFile.getFileFromOffset() + offset;
+
+            // false表示有刷盘操作，true表示无变化
             result = where == this.flushedWhere;
             this.flushedWhere = where;
             if (0 == flushLeastPages) {
@@ -469,6 +498,8 @@ public class MappedFileQueue {
 
     /**
      * Finds a mapped file by offset.
+     *
+     * 根据消息偏移量找到查找 mappedFile
      *
      * @param offset Offset.
      * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.

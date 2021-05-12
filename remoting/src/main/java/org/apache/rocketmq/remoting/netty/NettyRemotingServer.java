@@ -95,9 +95,11 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
         this.serverBootstrap = new ServerBootstrap();
         this.nettyServerConfig = nettyServerConfig;
+
+        //NameSrv --> channelEventListener: BrokerHousekeepingService
         this.channelEventListener = channelEventListener;
 
-        //默认netty server回调线程是4
+        //默认netty server回调线程是 4
         int publicThreadNums = nettyServerConfig.getServerCallbackExecutorThreads();
         if (publicThreadNums <= 0) {
             publicThreadNums = 4;
@@ -252,7 +254,9 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             throw new RuntimeException("this.serverBootstrap.bind().sync() InterruptedException", e1);
         }
 
+        //NameSrv --> channelEventListener: BrokerHousekeepingService
         if (this.channelEventListener != null) {
+            // NettyEventExecutor#run
             this.nettyEventExecutor.start();
         }
 

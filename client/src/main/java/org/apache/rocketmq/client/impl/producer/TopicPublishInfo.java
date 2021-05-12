@@ -29,7 +29,7 @@ public class TopicPublishInfo {
     private boolean haveTopicRouterInfo = false;
     //消息队列
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
-    //没选择一次消息队列，该值都加1
+    //每选择一次消息队列，该值都加1
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     //topic 路由数据
     private TopicRouteData topicRouteData;

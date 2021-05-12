@@ -453,7 +453,7 @@ public abstract class NettyRemotingAbstract {
                 }
             });
 
-            //等待 timeoutMillis 毫秒
+            //等待阻塞 timeoutMillis 毫秒 【基于 countDownLatch 实现】
             RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
             if (null == responseCommand) {
                 if (responseFuture.isSendRequestOK()) {
@@ -628,6 +628,7 @@ public abstract class NettyRemotingAbstract {
         public void run() {
             log.info(this.getServiceName() + " service started");
 
+            // NameSrv --> channelEventListener: BrokerHousekeepingService
             final ChannelEventListener listener = NettyRemotingAbstract.this.getChannelEventListener();
 
             while (!this.isStopped()) {

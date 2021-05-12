@@ -62,6 +62,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
             return response;
         }
 
+        //判断是来源于Producer主动发的消息还是Broker主动检查返回的消息，这里只用来记录日志
         if (requestHeader.getFromTransactionCheck()) {
             switch (requestHeader.getCommitOrRollback()) {
                 case MessageSysFlag.TRANSACTION_NOT_TYPE: {
@@ -122,18 +123,28 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
             }
         }
         OperationResult result = new OperationResult();
+        //1、如果收到的是提交事务消息
         if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
+            //2、从commitLog中查出原始的prepared消息
             result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
+
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
+                //3、检查获取到的消息是否和当前消息匹配（包括ProduceGroup、queueOffset、commitLogOffset）
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
+
                 if (res.getCode() == ResponseCode.SUCCESS) {
+                    //4、使用原始的prepared消息属性(topic 会还原为真正的topic)，构建最终发给consumer的消息
                     MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
                     msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
                     msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
                     msgInner.setPreparedTransactionOffset(requestHeader.getCommitLogOffset());
                     msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
+
+                    //5、调用MessageStore的消息存储接口提交消息，使用真正的topic和queueId
                     RemotingCommand sendResult = sendFinalMessage(msgInner);
+
                     if (sendResult.getCode() == ResponseCode.SUCCESS) {
+                        //6、设置Prepared消息的标记位为delete
                         this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
                     }
                     return sendResult;
@@ -141,6 +152,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                 return res;
             }
         } else if (MessageSysFlag.TRANSACTION_ROLLBACK_TYPE == requestHeader.getCommitOrRollback()) {
+            //7、收到的回滚事务消息
             result = this.brokerController.getTransactionalMessageService().rollbackMessage(requestHeader);
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
@@ -192,6 +204,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
 
     private MessageExtBrokerInner endMessageTransaction(MessageExt msgExt) {
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        //topic 还原为真正的 topic
         msgInner.setTopic(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_TOPIC));
         msgInner.setQueueId(Integer.parseInt(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_QUEUE_ID)));
         msgInner.setBody(msgExt.getBody());

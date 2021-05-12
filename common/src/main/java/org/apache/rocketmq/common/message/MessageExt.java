@@ -29,7 +29,7 @@ public class MessageExt extends Message {
 
     private int storeSize;
 
-    private long queueOffset;
+    private long queueOffset;  //逻辑队列长度
     private int sysFlag;
     private long bornTimestamp;
     private SocketAddress bornHost;
@@ -37,7 +37,7 @@ public class MessageExt extends Message {
     private long storeTimestamp;
     private SocketAddress storeHost;
     private String msgId;
-    private long commitLogOffset;
+    private long commitLogOffset;  //物理偏移
     private int bodyCRC;
     //重新消费次数
     private int reconsumeTimes;

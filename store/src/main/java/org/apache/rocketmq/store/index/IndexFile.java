@@ -27,6 +27,9 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.MappedFile;
 
+/**
+ * 索引文件
+ */
 public class IndexFile {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static int hashSlotSize = 4;
@@ -37,6 +40,7 @@ public class IndexFile {
     private final MappedFile mappedFile;
     private final FileChannel fileChannel;
     private final MappedByteBuffer mappedByteBuffer;
+    //索引文件的头部信息
     private final IndexHeader indexHeader;
 
     public IndexFile(final String fileName, final int hashSlotNum, final int indexNum,
@@ -90,9 +94,14 @@ public class IndexFile {
     }
 
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
+        //1、判断index是否已满，返回失败
         if (this.indexHeader.getIndexCount() < this.indexNum) {
+
+            //2、计算key的非负数hashCode
             int keyHash = indexKeyHashMethod(key);
+            //3、key应该存放的slot，  keyHash % 500W
             int slotPos = keyHash % this.hashSlotNum;
+            //3、slot 的数据存放位置(槽的物理位置)   40 + keyHash %（500W）* 4,  每个槽位占4个字节
             int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
 
             FileLock fileLock = null;
@@ -101,13 +110,17 @@ public class IndexFile {
 
                 // fileLock = this.fileChannel.lock(absSlotPos, hashSlotSize,
                 // false);
+                //5、如果存在hash冲突，获取这个slot存的前一个index的计数，如果没有则值为0
                 int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
                 if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()) {
+                    //进入此条件，说明hash 不冲突
                     slotValue = invalidIndex;
                 }
 
+                //6、计算当前msg的存储时间和第一条msg相差秒数
                 long timeDiff = storeTimestamp - this.indexHeader.getBeginTimestamp();
 
+                //这里为了节约空间；直接timestamp是8位
                 timeDiff = timeDiff / 1000;
 
                 if (this.indexHeader.getBeginTimestamp() <= 0) {
@@ -118,22 +131,29 @@ public class IndexFile {
                     timeDiff = 0;
                 }
 
+                //7、计算当前消息索引具体的存储位置 (Append模式)
+                //40 + 500W * 4 + index的顺序数 * 40；
                 int absIndexPos =
-                    IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
-                        + this.indexHeader.getIndexCount() * indexSize;
+                    IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize + this.indexHeader.getIndexCount() * indexSize;
 
+                //8、生成一个index的unit内容
                 this.mappedByteBuffer.putInt(absIndexPos, keyHash);
                 this.mappedByteBuffer.putLong(absIndexPos + 4, phyOffset);
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8, (int) timeDiff);
-                this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);
+                this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);  //类似 hashMap 的前插法
 
+                //9、更新slot中的值为本条消息的顺序号
+                // 下次通过该key进行搜索时, 会找到该key hash slot -> slot value -> curIndex ->
+                // if(curIndex.prevIndex>0) pre index (一直循环 直至该curIndex.prevIndex==0就停止)
                 this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount());
 
+                //10、如果是第一条消息，更新header中的起始offset和起始time
                 if (this.indexHeader.getIndexCount() <= 1) {
                     this.indexHeader.setBeginPhyOffset(phyOffset);
                     this.indexHeader.setBeginTimestamp(storeTimestamp);
                 }
 
+                //11、更新header中的计数
                 this.indexHeader.incHashSlotCount();
                 this.indexHeader.incIndexCount();
                 this.indexHeader.setEndPhyOffset(phyOffset);
@@ -189,6 +209,7 @@ public class IndexFile {
     public void selectPhyOffset(final List<Long> phyOffsets, final String key, final int maxNum,
         final long begin, final long end, boolean lock) {
         if (this.mappedFile.hold()) {
+            //1、跟生成索引时一样，找到key的slot
             int keyHash = indexKeyHashMethod(key);
             int slotPos = keyHash % this.hashSlotNum;
             int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
@@ -196,32 +217,32 @@ public class IndexFile {
             FileLock fileLock = null;
             try {
                 if (lock) {
-                    // fileLock = this.fileChannel.lock(absSlotPos,
-                    // hashSlotSize, true);
                 }
 
+                //2、获取该槽位上的最后一条索引的序号
                 int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
-                // if (fileLock != null) {
-                // fileLock.release();
-                // fileLock = null;
-                // }
 
-                if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()
-                    || this.indexHeader.getIndexCount() <= 1) {
+                if (slotValue <= invalidIndex
+                        || slotValue > this.indexHeader.getIndexCount()
+                        || this.indexHeader.getIndexCount() <= 1) {
                 } else {
                     for (int nextIndexToRead = slotValue; ; ) {
-                        if (phyOffsets.size() >= maxNum) {
+                        if (phyOffsets.size() >= maxNum) {   // 到达最大返回条数
                             break;
                         }
 
+                        //3、找到index的位置
                         int absIndexPos =
                             IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
                                 + nextIndexToRead * indexSize;
 
+
                         int keyHashRead = this.mappedByteBuffer.getInt(absIndexPos);
+                        //4、在commitlog中偏移
                         long phyOffsetRead = this.mappedByteBuffer.getLong(absIndexPos + 4);
 
                         long timeDiff = (long) this.mappedByteBuffer.getInt(absIndexPos + 4 + 8);
+                        //5、相同hashcode的前一条消息的序号
                         int prevIndexRead = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8 + 4);
 
                         if (timeDiff < 0) {
@@ -233,6 +254,7 @@ public class IndexFile {
                         long timeRead = this.indexHeader.getBeginTimestamp() + timeDiff;
                         boolean timeMatched = (timeRead >= begin) && (timeRead <= end);
 
+                        //6、Hash和time都符合条件，加入返回列表
                         if (keyHash == keyHashRead && timeMatched) {
                             phyOffsets.add(phyOffsetRead);
                         }
@@ -243,6 +265,7 @@ public class IndexFile {
                             break;
                         }
 
+                        //7、前一条不等于0，继续读入前一条
                         nextIndexToRead = prevIndexRead;
                     }
                 }

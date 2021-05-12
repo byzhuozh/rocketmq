@@ -144,6 +144,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return response;
         }
 
+        //设置此条消息新的topic为%RETRY%+消费组的名称，并且选择新topic的队列（默认为0，默认情况下RetryQueueNums未1）
         String newTopic = MixAll.getRetryTopic(requestHeader.getGroup());
         int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % subscriptionGroupConfig.getRetryQueueNums();
 
@@ -152,6 +153,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
         }
 
+        //为新topic创建topicConfig，实际上这步在client启动的时候和broker进行心跳的时候就已经创建好了。消费者client
+        //会将自身订阅的subscription包装成心跳发送给broker，而subscription包含了名为(%RETRY%+消费组名称)的主题了，这个方法
+        //在broker接收到心跳的时候也会触发
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
             newTopic,
             subscriptionGroupConfig.getRetryQueueNums(),
@@ -168,6 +172,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return response;
         }
 
+        //通过物理偏移量找到原消息
         MessageExt msgExt = this.brokerController.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
         if (null == msgExt) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
@@ -175,6 +180,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return response;
         }
 
+        //给原始消息新增属性，key为RETRY_TOPIC，value为原始消息的实际topic。这里很关键，和消费端消费消息时候的resetRetryTopic(msgs) 相呼应
         final String retryTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
         if (null == retryTopic) {
             MessageAccessor.putProperty(msgExt, MessageConst.PROPERTY_RETRY_TOPIC, msgExt.getTopic());
@@ -188,6 +194,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
         }
 
+        //超过最大重试次数，则进行死信队列
         if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
             || delayLevel < 0) {
             newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
@@ -210,6 +217,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             msgExt.setDelayTimeLevel(delayLevel);
         }
 
+        //创建一个新的消息，此消息的topic为newTopic，queueID为queueIdInt
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
         msgInner.setTopic(newTopic);
         msgInner.setBody(msgExt.getBody());
@@ -223,8 +231,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setBornTimestamp(msgExt.getBornTimestamp());
         msgInner.setBornHost(msgExt.getBornHost());
         msgInner.setStoreHost(this.getStoreHost());
-        msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);
+        msgInner.setReconsumeTimes(msgExt.getReconsumeTimes() + 1);  //消费次数+1
 
+        //原消息ID
         String originMsgId = MessageAccessor.getOriginMessageId(msgExt);
         MessageAccessor.setOriginMessageId(msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId() : originMsgId);
 
@@ -317,6 +326,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         final RemotingCommand response = RemotingCommand.createResponseCommand(SendMessageResponseHeader.class);
         final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader)response.readCustomHeader();
 
+        //客户端请求的序列化返回
         response.setOpaque(request.getOpaque());
 
         response.addExtField(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
@@ -332,9 +342,11 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return response;
         }
 
-        // 消息配置(Topic配置）校验
         response.setCode(-1);
+
+        //校验消息是否正确，主要是Topic配置方面
         super.msgCheck(ctx, requestHeader, response);
+
         if (response.getCode() != -1) {
             return response;
         }
@@ -348,7 +360,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
         }
 
-        // 创建MessageExtBrokerInner
+        // 创建 MessageExtBrokerInner
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
         msgInner.setTopic(requestHeader.getTopic());
         msgInner.setQueueId(queueIdInt);
@@ -369,8 +381,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         PutMessageResult putMessageResult = null;
         Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        //是否消息标记
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
 
+        //如果是事务消息，判断broker是否支持事务消息
         if (traFlag != null && Boolean.parseBoolean(traFlag)) {
             // 校验是否不允许发送事务消息
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
@@ -380,6 +394,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                         + "] sending transaction message is forbidden");
                 return response;
             }
+            //存储 prepare 消息
             putMessageResult = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
             // 添加消息

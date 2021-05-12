@@ -56,11 +56,17 @@ public class IndexHeader {
     }
 
     public void updateByteBuffer() {
+        //8位 该索引文件的第一个消息(Message)的存储时间(落盘时间)
         this.byteBuffer.putLong(beginTimestampIndex, this.beginTimestamp.get());
+        //8位 该索引文件的最后一个消息(Message)的存储时间(落盘时间)
         this.byteBuffer.putLong(endTimestampIndex, this.endTimestamp.get());
+        //8位 该索引文件第一个消息(Message)的在CommitLog(消息存储文件)的物理位置偏移量(可以通过该物理偏移直接获取到该消息)
         this.byteBuffer.putLong(beginPhyoffsetIndex, this.beginPhyOffset.get());
+        //8位 该索引文件最后一个消息(Message)的在CommitLog(消息存储文件)的物理位置偏移量
         this.byteBuffer.putLong(endPhyoffsetIndex, this.endPhyOffset.get());
+        //4位 该索引文件目前的hash slot的个数
         this.byteBuffer.putInt(hashSlotcountIndex, this.hashSlotCount.get());
+        //4位 索引文件目前的索引个数
         this.byteBuffer.putInt(indexCountIndex, this.indexCount.get());
     }
 

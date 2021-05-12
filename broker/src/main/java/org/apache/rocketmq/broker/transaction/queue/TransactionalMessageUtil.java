@@ -22,6 +22,7 @@ import java.nio.charset.Charset;
 
 public class TransactionalMessageUtil {
     public static final String REMOVETAG = "d";
+
     public static Charset charset = Charset.forName("utf-8");
 
     public static String buildOpTopic() {

@@ -60,11 +60,16 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
 
         int index = cidAll.indexOf(currentCID);
         int mod = mqAll.size() % cidAll.size();
+
+        //AVG size计算方法，mq数量<=consumer数量，size=1，这种情况是很少的
+        //否则size=mq数量/consumer数量，余数是几则前几个consumer的size+1,这样所有的queue都会有consumer消费
         int averageSize =
             mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
                 + 1 : mqAll.size() / cidAll.size());
         int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
         int range = Math.min(averageSize, mqAll.size() - startIndex);
+
+        //从第一个consumer开始分配，每个分avgSize个连续的Queue，
         for (int i = 0; i < range; i++) {
             result.add(mqAll.get((startIndex + i) % mqAll.size()));
         }

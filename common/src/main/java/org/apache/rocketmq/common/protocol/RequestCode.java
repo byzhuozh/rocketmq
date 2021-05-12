@@ -30,7 +30,7 @@ public class RequestCode {
     public static final int QUERY_MESSAGE = 12;
     // Broker 查询Broker Offset
     public static final int QUERY_BROKER_OFFSET = 13;
-    // Broker 查询Consumer Offset
+    // 查询 broker 记录的  Consumer Offset
     public static final int QUERY_CONSUMER_OFFSET = 14;
 
     // Broker 更新Consumer Offset

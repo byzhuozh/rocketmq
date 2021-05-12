@@ -117,6 +117,7 @@ public class TransactionalMessageBridge {
 
     private PullResult getMessage(String group, String topic, int queueId, long offset, int nums,
         SubscriptionData sub) {
+
         GetMessageResult getMessageResult = store.getMessage(group, topic, queueId, offset, nums, null);
 
         if (getMessageResult != null) {
@@ -187,25 +188,34 @@ public class TransactionalMessageBridge {
     }
 
     public PutMessageResult putHalfMessage(MessageExtBrokerInner messageInner) {
+        //将消息进行转换（改写消息的topic），再进行存储
         return store.putMessage(parseHalfMessageInner(messageInner));
     }
 
     private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
+        //将消息的真正topic 进行缓存
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC, msgInner.getTopic());
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID,
             String.valueOf(msgInner.getQueueId()));
+        //清除sysFlag中的事务消息状态位
         msgInner.setSysFlag(
             MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), MessageSysFlag.TRANSACTION_NOT_TYPE));
+        //修改事务的 topic
+        //事务prepare消息放入统一的topic，RMQ_SYS_TRANS_HALF_TOPIC
         msgInner.setTopic(TransactionalMessageUtil.buildHalfTopic());
+        //queueId统一设置成0
         msgInner.setQueueId(0);
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
         return msgInner;
     }
 
     public boolean putOpMessage(MessageExt messageExt, String opType) {
+        //选择和Prepared消息相同的queueId
         MessageQueue messageQueue = new MessageQueue(messageExt.getTopic(),
             this.brokerController.getBrokerConfig().getBrokerName(), messageExt.getQueueId());
+
         if (TransactionalMessageUtil.REMOVETAG.equals(opType)) {
+            //原消息添加 d(delete) 标签， 并添加到 op_half_topic 下
             return addRemoveTagInTransactionOp(messageExt, messageQueue);
         }
         return true;
@@ -298,6 +308,8 @@ public class TransactionalMessageBridge {
      * @return This method will always return true.
      */
     private boolean addRemoveTagInTransactionOp(MessageExt messageExt, MessageQueue messageQueue) {
+        //message 的topic为 RMQ_SYS_TRANS_OP_HALF_TOPIC
+        //消息的 tags 值是 d，body中存储的是prepared消息的queueOffset
         Message message = new Message(TransactionalMessageUtil.buildOpTopic(), TransactionalMessageUtil.REMOVETAG,
             String.valueOf(messageExt.getQueueOffset()).getBytes(TransactionalMessageUtil.charset));
         writeOp(message, messageQueue);

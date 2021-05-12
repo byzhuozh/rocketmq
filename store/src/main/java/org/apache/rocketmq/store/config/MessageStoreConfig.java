@@ -30,13 +30,13 @@ public class MessageStoreConfig {
     private String storePathCommitLog = System.getProperty("user.home") + File.separator + "store"
         + File.separator + "commitlog";
 
-    // CommitLog file size,default is 1G
+    // CommitLog file size,default is 1G   默认 1G
     private int mapedFileSizeCommitLog = 1024 * 1024 * 1024;
     // ConsumeQueue file size,default is 30W
     private int mapedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
     // enable consume queue ext
     private boolean enableConsumeQueueExt = false;
-    // ConsumeQueue extend file size, 48M
+    // ConsumeQueue extend file size, 48M   ConsumeQueue扩展文件大小默认48MB
     private int mappedFileSizeConsumeQueueExt = 48 * 1024 * 1024;
     // Bit count of filter bit map.
     // this will be set by pipe of calculate filter bit map.
@@ -44,6 +44,7 @@ public class MessageStoreConfig {
 
     // CommitLog flush interval
     // flush data to disk
+    // commitlog 刷盘频率
     @ImportantField
     private int flushIntervalCommitLog = 500;
 
@@ -74,6 +75,7 @@ public class MessageStoreConfig {
     // When to delete,default is at 4 am
     @ImportantField
     private String deleteWhen = "04";
+    //文件所在磁盘分区的最大使用量
     private int diskMaxUsedSpaceRatio = 75;
     // The number of hours to keep a log file before deleting it (in hours)
     @ImportantField
@@ -96,51 +98,89 @@ public class MessageStoreConfig {
     private int flushConsumeQueueLeastPages = 2;
     private int flushCommitLogThoroughInterval = 1000 * 10;
     private int commitCommitLogThoroughInterval = 200;
+    //Consume两次刷盘的最大间隔,如果超过该间隔,将忽略
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
+    //一次服务端消息拉取,消息在内存中传输允许的最大传输字节数默认256kb
     @ImportantField
     private int maxTransferBytesOnMessageInMemory = 1024 * 256;
+    //一次服务消息拉取,消息在内存中传输运行的最大消息条数,默认为32条
     @ImportantField
     private int maxTransferCountOnMessageInMemory = 32;
+    //一次服务消息端消息拉取,消息在磁盘中传输允许的最大字节
     @ImportantField
     private int maxTransferBytesOnMessageInDisk = 1024 * 64;
+    //一次消息服务端消息拉取,消息在磁盘中传输允许的最大条数,默认为8条
     @ImportantField
     private int maxTransferCountOnMessageInDisk = 8;
+    //访问消息在内存中阀值,默认为40
     @ImportantField
     private int accessMessageInMemoryMaxRatio = 40;
+    //是否支持消息索引文件
     @ImportantField
     private boolean messageIndexEnable = true;
     private int maxHashSlotNum = 5000000;
+    //单个索引文件索引条目的个数,默认为两千万
     private int maxIndexNum = 5000000 * 4;
+    //一次查询消息最大返回消息条数,默认64条
     private int maxMsgsNumBatch = 64;
+    //消息索引是否安全,默认为 false,文件恢复时选择文件检测点（commitlog.consumeque）的最小的与文件最后更新对比，
+    // 如果为true，文件恢复时选择文件检测点保存的索引更新时间作为对比
     @ImportantField
     private boolean messageIndexSafe = false;
+    //Master监听端口,从服务器连接该端口,默认为10912
     private int haListenPort = 10912;
+    //Master与Slave心跳包发送间隔
     private int haSendHeartbeatInterval = 1000 * 5;
+    //Master与save长连接空闲时间,超过该时间将关闭连接
     private int haHousekeepingInterval = 1000 * 20;
+    //一次HA主从同步传输的最大字节长度,默认为32K
     private int haTransferBatchSize = 1024 * 32;
+    //Master服务器IP地址与端口号
     @ImportantField
     private String haMasterAddress = null;
+    //允许从服务器落户的最大偏移字节数,默认为256M。超过该值则表示该Slave不可用
     private int haSlaveFallbehindMax = 1024 * 1024 * 256;
+
+    //broker角色,分为 ASYNC_MASTER SYNC_MASTER, SLAVE
     @ImportantField
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
+
+    //刷盘方式,默认为 ASYNC_FLUSH(异步刷盘),可选值SYNC_FLUSH(同步刷盘)
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
+
+    //同步刷盘超时时间
     private int syncFlushTimeout = 1000 * 5;
+    //延迟队列等级（s=秒，m=分，h=小时）
     private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
+    //延迟队列拉取进度刷盘间隔。默认10s
     private long flushDelayOffsetInterval = 1000 * 10;
+
+    //是否支持强行删除过期文件
     @ImportantField
     private boolean cleanFileForciblyEnable = true;
+    //是否温和地使用 MappedFile如果为true,将不强制将内存映射文件锁定在内存中
     private boolean warmMapedFileEnable = false;
+    //从服务器是否坚持 offset检测
     private boolean offsetCheckInSlave = false;
+    //是否支持 PutMessage Lock锁打印信息
     private boolean debugLockEnable = false;
+    //是否允许重复复制,默认为 false
     private boolean duplicationEnable = false;
+    //是否统计磁盘的使用情况,默认为true
     private boolean diskFallRecorded = true;
+
+    //putMessage锁占用超过该时间,表示 PageCache忙
     private long osPageCacheBusyTimeOutMills = 1000;
+    //查询消息默认返回条数,默认为32
     private int defaultQueryMaxNum = 32;
 
+    //Commitlog是否开启 transientStorePool机制,默认为 false
     @ImportantField
     private boolean transientStorePoolEnable = false;
+    //transientStorePool中缓存 ByteBuffer个数,默认5个
     private int transientStorePoolSize = 5;
+    // 从 transientStorepool中获取 ByteBuffer是否支持快速失败
     private boolean fastFailIfNoBufferInStorePool = false;
 
     public boolean isDebugLockEnable() {

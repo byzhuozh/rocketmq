@@ -101,15 +101,15 @@ public class NamesrvController {
         // 初始化netty server
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
-        // 初始化固定线程池(默认工作线程数 8 个)   客户端请求处理的线程池
+        // 初始化固定线程池(默认工作线程数 8 个)   处理客户端请求的线程池，在 registerProcessor() 中注入
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
-        //注册接收到请求之后具体的处理   注册DefaultRequestProcessor，所有的客户端请求都会转给这个Processor来处理
+        //注册接收到请求之后具体的处理   注册 DefaultRequestProcessor，所有的客户端请求都会转给这个Processor来处理
         this.registerProcessor();
 
         // 增加定时任务
-        // 启动定时调度，每10秒钟扫描所有Broker，检查存活状态
+        // 启动定时调度，每10 秒钟扫描所有Broker，检查存活状态
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -167,6 +167,9 @@ public class NamesrvController {
         return true;
     }
 
+    /**
+     * 注册处理器
+     */
     private void registerProcessor() {
         // 是否开启集群测试
         if (namesrvConfig.isClusterTest()) {  // 默认 false
@@ -174,12 +177,13 @@ public class NamesrvController {
             this.remotingServer.registerDefaultProcessor(new ClusterTestRequestProcessor(this, namesrvConfig.getProductEnvName()),
                 this.remotingExecutor);
         } else {
-            // 注册默认的请求处理器
+            // 注册默认的请求处理器，
             this.remotingServer.registerDefaultProcessor(new DefaultRequestProcessor(this), this.remotingExecutor);
         }
     }
 
     public void start() throws Exception {
+        //启动服务
         this.remotingServer.start();
 
         if (this.fileWatchService != null) {

@@ -60,7 +60,7 @@ public class MessageDecoder {
         input.flip();
         input.limit(MessageDecoder.MSG_ID_LENGTH);
 
-        input.put(addr);
+        input.put(addr);  // addr 实际为 Ip + port
         input.putLong(offset);
 
         return UtilAll.bytes2string(input.array());

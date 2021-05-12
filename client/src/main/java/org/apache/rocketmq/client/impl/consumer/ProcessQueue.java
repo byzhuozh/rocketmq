@@ -88,6 +88,8 @@ public class ProcessQueue {
 
     // 上次消费完消息后记录的时间
     private volatile long lastConsumeTimestamp = System.currentTimeMillis();
+
+    //当前处理队列是否持有锁
     private volatile boolean locked = false;
 
     // 上次锁定的时间

@@ -334,6 +334,8 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                     }
                 }
 
+                //若 msgBackFailed不为空，则证明发送sendMessageBack有失败（有可能部分也有可能全部），将发送sendMessageBack失败的消息从consumeRequest删除。
+                // 并且会将这些发送失败的消息重新包装起来5S后转发给消费线程池继续消费
                 if (!msgBackFailed.isEmpty()) {
                     //移除消费失败的消息列表
                     consumeRequest.getMsgs().removeAll(msgBackFailed);
@@ -444,8 +446,10 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             //消费返回类型
             ConsumeReturnType returnType = ConsumeReturnType.SUCCESS;
             try {
-                //重置消息的 topic 为 retry + topic
+                //如果此消息的主题为（%RETRY%+消费组的名称），那么将会将此消息的topic重置为原始消息的topic。
+                //即此消息的真实topic会存储在properties当中，键为RETRY_TOPIC，值为真实topic，将真实topic取出赋予此消息。
                 ConsumeMessageConcurrentlyService.this.resetRetryTopic(msgs);
+
                 if (msgs != null && !msgs.isEmpty()) {
                     for (MessageExt msg : msgs) {
                         MessageAccessor.setConsumeStartTimeStamp(msg, String.valueOf(System.currentTimeMillis()));

@@ -46,10 +46,10 @@ public class SlaveSynchronize {
     }
 
     public void syncAll() {
-        this.syncTopicConfig();
-        this.syncConsumerOffset();
-        this.syncDelayOffset();
-        this.syncSubscriptionGroupConfig();
+        this.syncTopicConfig();   //同步topic的配置信息
+        this.syncConsumerOffset();  //同步consumer的offset信息
+        this.syncDelayOffset();   //同步延迟队列信息
+        this.syncSubscriptionGroupConfig();  //同步订阅信息
     }
 
     private void syncTopicConfig() {
@@ -82,8 +82,7 @@ public class SlaveSynchronize {
             try {
                 ConsumerOffsetSerializeWrapper offsetWrapper =
                     this.brokerController.getBrokerOuterAPI().getAllConsumerOffset(masterAddrBak);
-                this.brokerController.getConsumerOffsetManager().getOffsetTable()
-                    .putAll(offsetWrapper.getOffsetTable());
+                this.brokerController.getConsumerOffsetManager().getOffsetTable().putAll(offsetWrapper.getOffsetTable());
                 this.brokerController.getConsumerOffsetManager().persist();
                 log.info("Update slave consumer offset from master, {}", masterAddrBak);
             } catch (Exception e) {
@@ -124,15 +123,11 @@ public class SlaveSynchronize {
                     this.brokerController.getBrokerOuterAPI()
                         .getAllSubscriptionGroupConfig(masterAddrBak);
 
-                if (!this.brokerController.getSubscriptionGroupManager().getDataVersion()
-                    .equals(subscriptionWrapper.getDataVersion())) {
-                    SubscriptionGroupManager subscriptionGroupManager =
-                        this.brokerController.getSubscriptionGroupManager();
-                    subscriptionGroupManager.getDataVersion().assignNewOne(
-                        subscriptionWrapper.getDataVersion());
+                if (!this.brokerController.getSubscriptionGroupManager().getDataVersion().equals(subscriptionWrapper.getDataVersion())) {
+                    SubscriptionGroupManager subscriptionGroupManager = this.brokerController.getSubscriptionGroupManager();
+                    subscriptionGroupManager.getDataVersion().assignNewOne(subscriptionWrapper.getDataVersion());
                     subscriptionGroupManager.getSubscriptionGroupTable().clear();
-                    subscriptionGroupManager.getSubscriptionGroupTable().putAll(
-                        subscriptionWrapper.getSubscriptionGroupTable());
+                    subscriptionGroupManager.getSubscriptionGroupTable().putAll(subscriptionWrapper.getSubscriptionGroupTable());
                     subscriptionGroupManager.persist();
                     log.info("Update slave Subscription Group from master, {}", masterAddrBak);
                 }

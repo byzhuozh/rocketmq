@@ -54,7 +54,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
                 return this.getConsumerListByGroup(ctx, request);
             case RequestCode.UPDATE_CONSUMER_OFFSET:
                 return this.updateConsumerOffset(ctx, request);
-            case RequestCode.QUERY_CONSUMER_OFFSET:
+            case RequestCode.QUERY_CONSUMER_OFFSET:  //查询消费者当前的消费偏移量
                 return this.queryConsumerOffset(ctx, request);
             default:
                 break;
@@ -125,6 +125,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
             (QueryConsumerOffsetRequestHeader) request
                 .decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);
 
+        // 从broker内存中查询consumerGroup消费的topic的队列对应的偏移量，如果是第一次订阅启动，并没有这个关系，将返回-1
         long offset =
             this.brokerController.getConsumerOffsetManager().queryOffset(
                 requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
@@ -134,13 +135,17 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
         } else {
+            // 按topic和queueId查topic下 当前队列 的最小偏移量
+            // 新的队列或消息数据未清理过的话，返回值为0（注意：如果新扩容队列也是新队列）
             long minOffset =
                 this.brokerController.getMessageStore().getMinOffsetInQueue(requestHeader.getTopic(),
                     requestHeader.getQueueId());
             if (minOffset <= 0
+                // 检查此队列的最老的数据是否还在内存，在内存则返回0
                 && !this.brokerController.getMessageStore().checkInDiskByConsumeOffset(
                 requestHeader.getTopic(), requestHeader.getQueueId(), 0)) {
-                responseHeader.setOffset(0L);
+
+                responseHeader.setOffset(0L);  // 为了避免扩容的时候消息被跳过，直接告诉客户端从0开始消费
                 response.setCode(ResponseCode.SUCCESS);
                 response.setRemark(null);
             } else {

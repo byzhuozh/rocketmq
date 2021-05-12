@@ -22,15 +22,20 @@ import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
+import java.io.RandomAccessFile;
+
 /**
  * This class demonstrates how to send messages to brokers using provided {@link DefaultMQProducer}.
  */
 public class Producer {
-    public static void main(String[] args) throws MQClientException, InterruptedException {
+
+    public static void main(String[] args) throws MQClientException, InterruptedException, Exception {
+
+//        RandomAccessFile file = new RandomAccessFile("/Users/zhuozh/project/rocketmq/example/byzhuozh.txt", "rw");
 
         DefaultMQProducer producer = new DefaultMQProducer("quick_producer");
-        producer.setNamesrvAddr("127.0.0.1:9876");
-//        producer.setNamesrvAddr("127.0.0.1:19876");
+//        producer.setNamesrvAddr("127.0.0.1:9876");
+        producer.setNamesrvAddr("127.0.0.1:19876");
 //        producer.setSendMsgTimeout(6000);
         producer.start();
 

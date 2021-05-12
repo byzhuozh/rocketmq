@@ -33,10 +33,11 @@ public class Consumer {
     public static void main(String[] args) throws InterruptedException, MQClientException {
 
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("quick_consumer");
-        consumer.setNamesrvAddr("127.0.0.1:9876");
-//        consumer.setNamesrvAddr("127.0.0.1:29876");
+//        consumer.setNamesrvAddr("127.0.0.1:9876");
+        consumer.setNamesrvAddr("127.0.0.1:19876");
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
-        consumer.subscribe("quick_topic", "*");
+//        consumer.subscribe("quick_topic", "*");
+        consumer.subscribe("quick_topic_retry", "*");
 
         consumer.registerMessageListener(new MessageListenerConcurrently() {
             @Override
@@ -44,7 +45,8 @@ public class Consumer {
                 MessageExt msg = msgs.get(0);
                 String data = new String(msg.getBody());
                 System.out.printf("结果：  %s Receive New Messages: %s %n", Thread.currentThread().getName(), data);
-                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
+//                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });
 

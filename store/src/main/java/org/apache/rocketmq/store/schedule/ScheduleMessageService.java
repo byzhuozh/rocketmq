@@ -103,6 +103,7 @@ public class ScheduleMessageService extends ConfigManager {
 
     public void start() {
 
+        //每个延迟消息的 level 都开启一个定时任务
         for (Map.Entry<Integer, Long> entry : this.delayLevelTable.entrySet()) {
             Integer level = entry.getKey();
             Long timeDelay = entry.getValue();
@@ -178,6 +179,7 @@ public class ScheduleMessageService extends ConfigManager {
         timeUnitTable.put("h", 1000L * 60 * 60);
         timeUnitTable.put("d", 1000L * 60 * 60 * 24);
 
+        //messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
         String levelString = this.defaultMessageStore.getMessageStoreConfig().getMessageDelayLevel();
         try {
             String[] levelArray = levelString.split(" ");
@@ -240,9 +242,9 @@ public class ScheduleMessageService extends ConfigManager {
         }
 
         public void executeOnTimeup() {
+            //获取定时topic下的消息队列
             ConsumeQueue cq =
-                ScheduleMessageService.this.defaultMessageStore.findConsumeQueue(SCHEDULE_TOPIC,
-                    delayLevel2QueueId(delayLevel));
+                ScheduleMessageService.this.defaultMessageStore.findConsumeQueue(SCHEDULE_TOPIC, delayLevel2QueueId(delayLevel));
 
             long failScheduleOffset = offset;
 
@@ -254,6 +256,7 @@ public class ScheduleMessageService extends ConfigManager {
                         int i = 0;
                         ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
                         for (; i < bufferCQ.getSize(); i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
+                            //获取消息队列中的 commit log 的消息的物理指针
                             long offsetPy = bufferCQ.getByteBuffer().getLong();
                             int sizePy = bufferCQ.getByteBuffer().getInt();
                             long tagsCode = bufferCQ.getByteBuffer().getLong();
@@ -277,17 +280,20 @@ public class ScheduleMessageService extends ConfigManager {
 
                             long countdown = deliverTimestamp - now;
 
+                            //判断消息的延迟时间是否到达
                             if (countdown <= 0) {
+                                //获取消息内容
                                 MessageExt msgExt =
-                                    ScheduleMessageService.this.defaultMessageStore.lookMessageByOffset(
-                                        offsetPy, sizePy);
+                                    ScheduleMessageService.this.defaultMessageStore.lookMessageByOffset(offsetPy, sizePy);
 
                                 if (msgExt != null) {
                                     try {
+                                        //消息topic 以及 queueId 还原
                                         MessageExtBrokerInner msgInner = this.messageTimeup(msgExt);
+
+                                        //将消息重新topic 还原后，重新添加到commit log 中
                                         PutMessageResult putMessageResult =
-                                            ScheduleMessageService.this.defaultMessageStore
-                                                .putMessage(msgInner);
+                                            ScheduleMessageService.this.defaultMessageStore.putMessage(msgInner);
 
                                         if (putMessageResult != null
                                             && putMessageResult.getPutMessageStatus() == PutMessageStatus.PUT_OK) {
@@ -327,6 +333,8 @@ public class ScheduleMessageService extends ConfigManager {
                         } // end of for
 
                         nextOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
+
+                        //重新定时拉取延迟队列的消息
                         ScheduleMessageService.this.timer.schedule(new DeliverDelayedMessageTimerTask(
                             this.delayLevel, nextOffset), DELAY_FOR_A_WHILE);
                         ScheduleMessageService.this.updateOffset(this.delayLevel, nextOffset);
@@ -372,6 +380,7 @@ public class ScheduleMessageService extends ConfigManager {
             msgInner.setWaitStoreMsgOK(false);
             MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_DELAY_TIME_LEVEL);
 
+            //还原消息的真正topic
             msgInner.setTopic(msgInner.getProperty(MessageConst.PROPERTY_REAL_TOPIC));
 
             String queueIdStr = msgInner.getProperty(MessageConst.PROPERTY_REAL_QUEUE_ID);

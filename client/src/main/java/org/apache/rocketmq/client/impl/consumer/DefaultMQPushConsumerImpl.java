@@ -634,7 +634,6 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
 
-
                 //初始化消费指针
                 if (this.defaultMQPushConsumer.getOffsetStore() != null) {
                     this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
@@ -653,6 +652,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     }
                     this.defaultMQPushConsumer.setOffsetStore(this.offsetStore);
                 }
+                //集群模式下：空实现
                 this.offsetStore.load();
 
                 //判断是否是顺序消费，创建消费端消费线程
@@ -682,6 +682,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 //在一个 jvm 中，消费者、生产者共同持有一个 MQClientInstance，MQClientInstance 只有启动一次
                 mQClientFactory.start();
                 log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
+
                 this.serviceState = ServiceState.RUNNING;
                 break;
             case RUNNING:
@@ -696,11 +697,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
 
 
-        //当订阅信息改变的时候进行更新
-        this.updateTopicSubscribeInfoWhenSubscriptionChanged();
+        // 从NameServer更新topic路由和订阅信息
+        this.updateTopicSubscribeInfoWhenSubscriptionChanged();  //如果是SQL过滤，检查broker是否支持SQL过滤
 
         this.mQClientFactory.checkClientInBroker();
+
+        //15、发送心跳，同步consumer配置到broker,同步FilterClass到FilterServer(PushConsumer)
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
+        //16、做一次re-balance
         this.mQClientFactory.rebalanceImmediately();
     }
 

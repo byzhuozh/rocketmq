@@ -78,8 +78,10 @@ public class MQAdminImpl {
 
     public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag) throws MQClientException {
         try {
+            //1、一般使用defaultTopic获取已经存在的broker data，所有的broker默认都支持defaultTopic
             TopicRouteData topicRouteData = this.mQClientFactory.getMQClientAPIImpl().getTopicRouteInfoFromNameServer(key, timeoutMillis);
             List<BrokerData> brokerDataList = topicRouteData.getBrokerDatas();
+
             if (brokerDataList != null && !brokerDataList.isEmpty()) {
                 Collections.sort(brokerDataList);
 
@@ -88,16 +90,19 @@ public class MQAdminImpl {
 
                 StringBuilder orderTopicString = new StringBuilder();
 
+                //2、轮询所有broker，在master上创建topic，中间有一个broker失败，则中止创建
                 for (BrokerData brokerData : brokerDataList) {
                     String addr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
                     if (addr != null) {
                         TopicConfig topicConfig = new TopicConfig(newTopic);
+                        //3、设置queue的数量
                         topicConfig.setReadQueueNums(queueNum);
                         topicConfig.setWriteQueueNums(queueNum);
+                        //4、设置topic的属性，比如可读、可写
                         topicConfig.setTopicSysFlag(topicSysFlag);
 
                         boolean createOK = false;
-                        for (int i = 0; i < 5; i++) {
+                        for (int i = 0; i < 5; i++) {  //重试4次
                             try {
                                 this.mQClientFactory.getMQClientAPIImpl().createTopic(addr, key, topicConfig, timeoutMillis);
                                 createOK = true;

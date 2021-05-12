@@ -129,11 +129,11 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         switch (request.getCode()) {
-            case RequestCode.UPDATE_AND_CREATE_TOPIC:
+            case RequestCode.UPDATE_AND_CREATE_TOPIC:   //更新和创建 topic
                 return this.updateAndCreateTopic(ctx, request);
-            case RequestCode.DELETE_TOPIC_IN_BROKER:
+            case RequestCode.DELETE_TOPIC_IN_BROKER:    //删除 broker 上的 topic
                 return this.deleteTopic(ctx, request);
-            case RequestCode.GET_ALL_TOPIC_CONFIG:
+            case RequestCode.GET_ALL_TOPIC_CONFIG:      //获取所有的 topic 配置
                 return this.getAllTopicConfig(ctx, request);
             case RequestCode.UPDATE_BROKER_CONFIG:
                 return this.updateBrokerConfig(ctx, request);
@@ -220,6 +220,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             (CreateTopicRequestHeader) request.decodeCommandCustomHeader(CreateTopicRequestHeader.class);
         log.info("updateAndCreateTopic called by {}", RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
 
+        //1、判断topicName的合法性，不能和clusterName同名
         if (requestHeader.getTopic().equals(this.brokerController.getBrokerConfig().getBrokerClusterName())) {
             String errorMsg = "the topic[" + requestHeader.getTopic() + "] is conflict with system reserved words.";
             log.warn(errorMsg);
@@ -229,6 +230,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         }
 
         try {
+            //2、先回复客户端创建成功，后更新broker缓存
             response.setCode(ResponseCode.SUCCESS);
             response.setOpaque(request.getOpaque());
             response.markResponseType();
@@ -245,8 +247,10 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         topicConfig.setPerm(requestHeader.getPerm());
         topicConfig.setTopicSysFlag(requestHeader.getTopicSysFlag() == null ? 0 : requestHeader.getTopicSysFlag());
 
+        //3、更新TopicConfigManager中的topic配置信息。不存在则创建，存在则更新，并且持久化到文件中
         this.brokerController.getTopicConfigManager().updateTopicConfig(topicConfig);
 
+        //4、broker将topic信息同步到nameserv
         this.brokerController.registerIncrementBrokerData(topicConfig,this.brokerController.getTopicConfigManager().getDataVersion());
 
         return null;
@@ -442,6 +446,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
         LockBatchRequestBody requestBody = LockBatchRequestBody.decode(request.getBody(), LockBatchRequestBody.class);
 
+        //对消息队列进行加锁
         Set<MessageQueue> lockOKMQSet = this.brokerController.getRebalanceLockManager().tryLockBatch(
             requestBody.getConsumerGroup(),
             requestBody.getMqSet(),

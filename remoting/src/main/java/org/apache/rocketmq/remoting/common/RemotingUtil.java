@@ -178,6 +178,7 @@ public class RemotingUtil {
             sc.socket().setReceiveBufferSize(1024 * 64);
             sc.socket().setSendBufferSize(1024 * 64);
             sc.socket().connect(remote, timeoutMillis);
+            //非阻塞
             sc.configureBlocking(false);
             return sc;
         } catch (Exception e) {

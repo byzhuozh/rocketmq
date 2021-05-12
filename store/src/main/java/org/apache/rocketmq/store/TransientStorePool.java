@@ -28,12 +28,21 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ * 存储池
+ */
 public class TransientStorePool {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    //availableBuffers 个数
     private final int poolSize;
+
+    //每个 ByteBuffer 大小
     private final int fileSize;
+
+    //byteBuffer 容器
     private final Deque<ByteBuffer> availableBuffers;
+
     private final MessageStoreConfig storeConfig;
 
     public TransientStorePool(final MessageStoreConfig storeConfig) {

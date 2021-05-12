@@ -141,6 +141,7 @@ public class RebalanceLockManager {
                         LockEntry lockEntry = groupValue.get(mq);
                         if (null == lockEntry) {
                             lockEntry = new LockEntry();
+                            //标记队列是被哪个客户端锁住
                             lockEntry.setClientId(clientId);
                             groupValue.put(mq, lockEntry);
                             log.info(

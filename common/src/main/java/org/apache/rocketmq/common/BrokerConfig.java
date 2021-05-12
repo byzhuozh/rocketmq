@@ -31,8 +31,10 @@ public class BrokerConfig {
     private String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
     @ImportantField
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
+    // brokerIP1 当前broker监听的IP
     @ImportantField
     private String brokerIP1 = RemotingUtil.getLocalAddress();
+    // brokerIP2 存在broker主从时，在broker主节点上配置了brokerIP2的话,broker从节点会连接主节点配置的brokerIP2来同步。
     private String brokerIP2 = RemotingUtil.getLocalAddress();
     @ImportantField
     private String brokerName = localHostName();

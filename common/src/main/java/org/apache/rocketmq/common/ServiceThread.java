@@ -104,12 +104,15 @@ public abstract class ServiceThread implements Runnable {
     }
 
     protected void waitForRunning(long interval) {
+        //hasNotified = true时，说明允许刷盘了
         if (hasNotified.compareAndSet(true, false)) {
+            //读写容器的数据进行交换，写容器复制到读容器，写容器清空
             this.onWaitEnd();
             return;
         }
 
         //entry to wait
+        //waitPoint 重置状态
         waitPoint.reset();
 
         try {
@@ -117,6 +120,7 @@ public abstract class ServiceThread implements Runnable {
         } catch (InterruptedException e) {
             log.error("Interrupted", e);
         } finally {
+            //重置
             hasNotified.set(false);
             this.onWaitEnd();
         }

@@ -55,7 +55,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         throws RemotingCommandException {
         switch (request.getCode()) {
             case RequestCode.HEART_BEAT:
-                return this.heartBeat(ctx, request);
+                return this.heartBeat(ctx, request);  //心跳检测
             case RequestCode.UNREGISTER_CLIENT:
                 return this.unregisterClient(ctx, request);
             case RequestCode.CHECK_CLIENT_CONFIG:
@@ -71,9 +71,17 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * 心跳处理
+     * @param ctx
+     * @param request
+     * @return
+     */
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        //客户端发送过来的心跳包
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
+        //客户端的 channel
         ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
             ctx.channel(),
             heartbeatData.getClientID(),
@@ -81,10 +89,13 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             request.getVersion()
         );
 
+        //消费者心跳包数据
         for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
+
+            //注册 group 的 订阅关系 SubscriptionGroupManager >>> subscriptionGroupTable
             SubscriptionGroupConfig subscriptionGroupConfig =
-                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(
-                    data.getGroupName());
+                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
+
             boolean isNotifyConsumerIdsChangedEnable = true;
             if (null != subscriptionGroupConfig) {
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
@@ -117,9 +128,9 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             }
         }
 
+        //生产者心跳包数据
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
-            this.brokerController.getProducerManager().registerProducer(data.getGroupName(),
-                clientChannelInfo);
+            this.brokerController.getProducerManager().registerProducer(data.getGroupName(), clientChannelInfo);
         }
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);

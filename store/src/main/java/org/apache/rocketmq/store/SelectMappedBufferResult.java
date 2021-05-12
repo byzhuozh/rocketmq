@@ -20,11 +20,11 @@ import java.nio.ByteBuffer;
 
 public class SelectMappedBufferResult {
 
-    private final long startOffset;
+    private final long startOffset;  //数据物理偏移量
 
     private final ByteBuffer byteBuffer;
 
-    private int size;
+    private int size;  //数据大小
 
     private MappedFile mappedFile;
 

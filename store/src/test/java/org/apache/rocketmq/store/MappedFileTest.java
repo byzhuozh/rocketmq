@@ -22,6 +22,7 @@ package org.apache.rocketmq.store;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 
 import org.apache.rocketmq.common.UtilAll;
 import org.junit.After;

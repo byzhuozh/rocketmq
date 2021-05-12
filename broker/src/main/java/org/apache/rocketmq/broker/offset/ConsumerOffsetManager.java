@@ -37,6 +37,7 @@ public class ConsumerOffsetManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final String TOPIC_GROUP_SEPARATOR = "@";
 
+    //key -> topic@group   val - > key: queueId, val: 消费位移
     private ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
         new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);
 
@@ -149,6 +150,7 @@ public class ConsumerOffsetManager extends ConfigManager {
                 return offset;
         }
 
+        //-1 表示为找到
         return -1;
     }
 

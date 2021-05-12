@@ -195,6 +195,7 @@ public abstract class RebalanceImpl {
                 requestBody.setMqSet(mqs);
 
                 try {
+                    //向 broker 发起消息队列加锁的请求
                     Set<MessageQueue> lockOKMQSet =
                         this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
 
@@ -205,6 +206,7 @@ public abstract class RebalanceImpl {
                                 log.info("the message queue locked OK, Group: {} {}", this.consumerGroup, mq);
                             }
 
+                            //标记当前消息队列对应的处理队列有锁
                             processQueue.setLocked(true);
                             processQueue.setLastLockTimestamp(System.currentTimeMillis());
                         }
@@ -278,7 +280,7 @@ public abstract class RebalanceImpl {
                 //topic 下的所有消息队列
                 Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
 
-                //从 broker 端获取该消费组内当前所有的消费者客户端ID
+                //从 broker 端获取 同一个消费组内 当前所有的消费者客户端ID
                 List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
                 if (null == mqSet) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
@@ -299,6 +301,7 @@ public abstract class RebalanceImpl {
                     Collections.sort(cidAll);
 
                     //默认策略： AllocateMessageQueueAveragely
+                    //按照初始化是指定的分配策略，获取分配的MQ列表
                     AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy;
 
                     List<MessageQueue> allocateResult = null;
@@ -319,13 +322,15 @@ public abstract class RebalanceImpl {
                         allocateResultSet.addAll(allocateResult);
                     }
 
-                    //更新正在处理的队列列表
+                    // 更新正在处理的队列列表
+                    // 更新 rebalanceImpl中的 processQueue 用来缓存收到的消息，对于新加入的Queue，提交一次PullRequest
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
                     if (changed) {
                         log.info(
                             "rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
                             strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
                             allocateResultSet.size(), allocateResultSet);
+                        // 同步数据到broker，通过发送一次心跳实现
                         this.messageQueueChanged(topic, mqSet, allocateResultSet);
                     }
                 }
@@ -403,6 +408,7 @@ public abstract class RebalanceImpl {
                 }
 
                 this.removeDirtyOffset(mq);
+                //创建消息队列的处理队列
                 ProcessQueue pq = new ProcessQueue();
 
                 //获取 mq 接下来的消费位置
